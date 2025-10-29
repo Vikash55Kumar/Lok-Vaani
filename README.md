@@ -98,7 +98,7 @@ python app.py
 
 🚀 How It Works
 
-1. User upploads a comment.
+1. User uploads a comment.
 
 2. AI model analyze it.
 
