@@ -4,6 +4,6 @@ venv/
 
 .dockerignore
 
-google_key.json
+service_account.json
 
 app1.py
