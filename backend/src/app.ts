@@ -42,13 +42,6 @@ app.use(express.static(buildPath));
 const inngestHandler = serve({ client: inngest, functions });
 
 app.use("/api/v1/inngest", (req, res, next) => {
-  console.log("📥 Inngest request", {
-    method: req.method,
-    path: req.path,
-    query: req.query,
-  });
-
-  // IMPORTANT: return the handler so Express sends the response
   return inngestHandler(req, res, next);
 });
 
