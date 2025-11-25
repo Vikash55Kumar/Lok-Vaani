@@ -6,81 +6,85 @@ import axios from "axios";
 // 1. Fetch from Model 1 every minute and save 3 comments as RAW
 export const commentFetchScheduler = inngest.createFunction(
   { id: "comment-fetch-scheduler" },
-  { cron:  "*/1 * * * *"}, // Every 1 minute
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
     const commentsToGenerate = 3;
     const maxAttemptsPerComment = 3;
+    
     let successfulComments = 0;
-    let errors: any[] = [];
+    const errors: any[] = [];
     const createdComments: any[] = [];
 
     for (let commentIndex = 0; commentIndex < commentsToGenerate; commentIndex++) {
-      let response;
+      let stepData: any; // This will hold the JSON data from the API
       let attempts = 0;
       let commentSuccessful = false;
 
       // Try to fetch one comment with retry logic
       while (attempts < maxAttemptsPerComment && !commentSuccessful) {
         try {
-          response = await step.run(`fetch-model1-comment-${commentIndex + 1}-attempt-${attempts + 1}`, async () => {
-            return await axios.post(`${process.env.MODEL1_API_URL}/generate`, {}, { timeout: 15000 });
-          });
+          // ✅ FIXED: We extract only 'data' inside the step
+          stepData = await step.run(
+            `fetch-model1-comment-${commentIndex + 1}-attempt-${attempts + 1}`,
+            async () => {
+              // console.log(`➡️ Calling MODEL1 generate (Index: ${commentIndex + 1}, Attempt: ${attempts + 1})`);
+              
+              const response = await axios.post(
+                `${process.env.MODEL1_API_URL}/generate`,
+                {}, 
+                { timeout: 15000 }
+              );
+              
+              // ONLY return the serializable data payload
+              return response.data; 
+            }
+          );
 
-          if (response?.data?.success) {
+          // Check success based on the returned data payload
+          if (stepData?.success) {
             commentSuccessful = true;
-            console.log("efore");
-            
-            break;            
+            break;
           }
-            console.log("after");
-
-        } catch (err) {
-          console.log("error1", err);
           
-          console.error(`Error fetching comment ${commentIndex + 1}, attempt ${attempts + 1}:`, err);
-          errors.push({ 
-            commentIndex: commentIndex + 1, 
-            attempt: attempts + 1, 
-            error: (err as any)?.message || err 
-          });
+        } catch (err) {
+          console.error(
+            `Error fetching comment ${commentIndex + 1}, attempt ${attempts + 1}:`,
+            err
+          );
+          // We do not push to errors array here yet, we wait until all attempts fail
         }
-        console.log("Attempt", attempts);
-        
+
         attempts++;
       }
 
       // If we got a successful response, save it to database
-      if (commentSuccessful && response?.data?.success) {
+      // Note: stepData is now the direct data object, not response.data
+      if (commentSuccessful && stepData?.success) {
         try {
-          const data = response.data;
-          const newComment = await prisma.comment.create({
-            data: {
-              postId: data.postId,
-              postTitle: data.postTitle,
-              companyId: data.companyId,
-              businessCategoryId: data.businessCategoryId,
-              stakeholderName: data.companyName,
-              rawComment: data.comment,
-              wordCount: data.wordCount,
-              status: "RAW"
+          // Wrap DB write in a step to ensure idempotency if the function crashes here
+          const newComment = await step.run(
+            `save-comment-${commentIndex + 1}-db`, 
+            async () => {
+              return await prisma.comment.create({
+                data: {
+                  postId: stepData.postId,
+                  postTitle: stepData.postTitle,
+                  companyId: stepData.companyId,
+                  businessCategoryId: stepData.businessCategoryId,
+                  stakeholderName: stepData.companyName,
+                  rawComment: stepData.comment,
+                  wordCount: stepData.wordCount,
+                  status: "RAW"
+                }
+              });
             }
-          });
-
-          // console.log("success comment fetcher", newComment);
-          
+          );
 
           if (newComment) {
             successfulComments++;
             createdComments.push({ commentId: newComment.id, commentIndex: commentIndex + 1 });
-          } else {
-            errors.push({ 
-              commentIndex: commentIndex + 1, 
-              error: "Failed to save comment to database" 
-            });
-          }
+          } 
         } catch (err) {
-          console.log("error2", err, `saving comment ${commentIndex + 1}`);
-          
           console.error(`Error saving comment ${commentIndex + 1} to database:`, err);
           errors.push({ 
             commentIndex: commentIndex + 1, 
@@ -94,9 +98,8 @@ export const commentFetchScheduler = inngest.createFunction(
         });
       }
     }
-      console.log("successfulComments", successfulComments);
+
     if (successfulComments === 0) {
-      console.log("successfulComments is zero");
       return {
         message: "No RAW comments fetched",
         successfulComments,
@@ -118,9 +121,8 @@ export const commentFetchScheduler = inngest.createFunction(
 // 2. Process RAW comments: send to Model 2, update DB as ANALYZED
 export const processRawComments = inngest.createFunction(
   { id: "process-raw-comments" },
-  { cron:  "*/1 * * * *" },
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
-    // Process up to 3 eligible RAW comments per run
     const maxCommentsPerRun = 3;
     let processedCount = 0;
     let lastProcessedCommentId = null;
@@ -128,131 +130,115 @@ export const processRawComments = inngest.createFunction(
     let errors: any[] = [];
 
     for (let i = 0; i < maxCommentsPerRun; i++) {
-      let comment;
-      try {
-        // Find next eligible comment
-        comment = await step.run(`find-raw-comment-${i+1}`, async () => {
-          return await prisma.comment.findFirst({
-            where: {
-              status: "RAW",
-              processingAttempts: { lt: 3 }
-            }
-          });
+      // 1. Find eligible comment (Wrapped in step)
+      const comment = await step.run(`find-raw-comment-${i + 1}`, async () => {
+        return await prisma.comment.findFirst({
+          where: {
+            status: "RAW",
+            processingAttempts: { lt: 3 }
+          }
         });
-      } catch (err) {
-        console.error(`Error finding raw comment (iteration ${i+1}):`, err);
-        errors.push({ step: `find-raw-comment-${i+1}`, error: err || err });
-        continue;
-      }
+      });
+
       if (!comment) {
         if (i === 0) {
-          return {message: "No eligible comments", status: "Skipped"};
+          return { message: "No eligible comments found", status: "Skipped" };
         }
-        break;
+        break; // Stop loop if no more comments
       }
 
-      // Only one call to Model 2 per comment, 60s timeout
-      let model2Response;
+      let analysisResult: any; // Will hold the plain JSON data
+
+      // 2. Call Model 2
       try {
-        model2Response = await step.run(`call-model2-attempt-${comment.id}-1`, async () => {
-          return await axios.post(`${process.env.MODEL2_API_URL}/analyze`, {
-            comment: comment.rawComment
-          }, { timeout: 60000 });
+        analysisResult = await step.run(`call-model2-attempt-${comment.id}-1`, async () => {
+          const response = await axios.post(
+            `${process.env.MODEL2_API_URL}/analyze`,
+            { comment: comment.rawComment },
+            { timeout: 60000 }
+          );
+          // ✅ FIX: Only return the data payload
+          return response.data; 
         });
+
       } catch (err) {
-        // Enhanced Axios error handling with type assertions
+        // --- Error Handling Logic ---
         let errorInfo: any = { step: `call-model2-attempt-${comment.id}-1` };
         const axiosErr = err as any;
+        
+        // Extract serializable error info
         if (axiosErr && axiosErr.isAxiosError) {
           errorInfo.error = axiosErr.message;
           errorInfo.code = axiosErr.code;
-          errorInfo.axiosConfig = {
-            url: axiosErr.config?.url,
-            method: axiosErr.config?.method,
-            timeout: axiosErr.config?.timeout
-          };
-          if (axiosErr.code === 'ECONNABORTED') {
-            errorInfo.type = 'timeout';
-          }
-          if (axiosErr.response) {
-            errorInfo.status = axiosErr.response.status;
-            errorInfo.statusText = axiosErr.response.statusText;
-            errorInfo.data = axiosErr.response.data;
-          }
+          if (axiosErr.code === 'ECONNABORTED') errorInfo.type = 'timeout';
         } else {
           errorInfo.error = (err as any)?.message || err;
         }
-        console.error(`Error calling Model 2 (comment ${comment.id}, attempt 1):`, errorInfo);
+
+        console.error(`Error calling Model 2 (comment ${comment.id}):`, errorInfo);
         errors.push(errorInfo);
-        // Increment processingAttempts after failed attempt
-        try {
-          await prisma.comment.update({
+
+        // Update attempts in DB (Wrapped in step)
+        await step.run(`increment-attempts-${comment.id}`, async () => {
+           await prisma.comment.update({
             where: { id: comment.id },
-            data: { processingAttempts: comment.processingAttempts + 1 }
+            data: { processingAttempts: (comment.processingAttempts || 0) + 1 }
           });
-        } catch (err) {
-          console.error(`Error updating processingAttempts (comment ${comment.id}):`, err);
-          errors.push({ step: `update-processingAttempts-${comment.id}`, error: (err as any)?.message || err });
-        }
-        continue; // Move to next comment
+        });
+        continue; // Skip to next comment
       }
 
-      // If Model 2 failed (no .data.success), mark as FAILED
-      if (!model2Response?.data?.success) {
-        const error = model2Response?.data?.error || model2Response?.statusText || "Unknown error";
-        try {
+      // 3. Check Logical Success (using analysisResult directly)
+      if (!analysisResult?.success) {
+        const errorMsg = analysisResult?.error || "Unknown API error";
+        
+        await step.run(`mark-failed-${comment.id}`, async () => {
           await prisma.comment.update({
             where: { id: comment.id },
             data: {
               status: "FAILED",
-              processingError: error
+              processingError: errorMsg
             }
           });
-        } catch (err) {
-          console.error(`Error marking comment as FAILED (comment ${comment.id}):`, err);
-          errors.push({ step: `mark-failed-${comment.id}`, error: (err as any)?.message || err });
-        }
-        continue; // Move to next comment
+        });
+        continue;
       }
 
-      // If successful, update as ANALYZED
+      // 4. Success - Update DB as ANALYZED (Wrapped in step)
       try {
-        await prisma.comment.update({
-          where: { id: comment.id },
-          data: {
-            standardComment: model2Response?.data?.translated,
-            language: model2Response?.data?.language_type,
-            sentiment: model2Response?.data?.sentiment,
-            sentimentScore: model2Response?.data?.sentimentScore,
-            summary: model2Response?.data?.summary,
-            status: "ANALYZED",
-            processedAt: new Date(),
-            processingError: null
-          }
+        await step.run(`update-analyzed-${comment.id}`, async () => {
+          await prisma.comment.update({
+            where: { id: comment.id },
+            data: {
+              // Note: analysisResult IS the data now, so we don't need .data.translated
+              standardComment: analysisResult.translated,
+              language: analysisResult.language_type,
+              sentiment: analysisResult.sentiment,
+              sentimentScore: analysisResult.sentimentScore,
+              summary: analysisResult.summary,
+              status: "ANALYZED",
+              processedAt: new Date(),
+              processingError: null
+            }
+          });
         });
+
         processedCount++;
         lastProcessedCommentId = comment.id;
         anyProcessed = true;
+
       } catch (err) {
         console.error(`Error updating comment as ANALYZED (comment ${comment.id}):`, err);
-        errors.push({ step: `update-analyzed-${comment.id}`, error: (err as any)?.message || err });
+        errors.push({ step: `update-analyzed-${comment.id}`, error: (err as any)?.message });
       }
     }
 
-    if (anyProcessed) {
-      return {
-        status: "analyzed",
-        processedCount,
-        lastProcessedCommentId,
-        errors,
-      };
-    } else {
-      return {
-        message: "No eligible comments",
-        processedCount,
-        errors,
-      };
-    }
+    return {
+      status: anyProcessed ? "analyzed" : "completed_with_errors",
+      processedCount,
+      lastProcessedCommentId,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 );
 
