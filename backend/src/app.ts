@@ -39,12 +39,17 @@ const buildPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(buildPath));
 
 //  Inngest endpoint
-app.use("/api/v1/inngest", async (req, res, next) => {
-  try {
-    await serve({ client: inngest, functions })(req, res, next);
-  } catch (err: any) {
-    console.error("❌ Inngest processing error:", err);
-  }
+const inngestHandler = serve({ client: inngest, functions });
+
+app.use("/api/v1/inngest", (req, res, next) => {
+  console.log("📥 Inngest request", {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+  });
+
+  // IMPORTANT: return the handler so Express sends the response
+  return inngestHandler(req, res, next);
 });
 
 app.use((req, res, next) => {
