@@ -12,7 +12,11 @@ from google.cloud import translate_v2 as translate
 
 # Set Google Cloud credentials directly as requested
 try:
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key.json"
+    SERVICE_ACCOUNT = os.getenv("SERVICE_ACCOUNT")
+    if SERVICE_ACCOUNT:
+        os.environ["SERVICE_ACCOUNT"] = SERVICE_ACCOUNT
+
+    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key.json"
     translate_client = translate.Client()
     print("✅ Google Cloud Translate client loaded successfully.")
 except Exception as e:
@@ -264,5 +268,5 @@ def analyze():
         return jsonify({"success": False, "error": "An unhandled internal server error occurred."}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))  
+    port = int(os.environ.get("PORT", 8080))  
     app.run(debug=True, host='0.0.0.0', port=port)
