@@ -1,6 +1,5 @@
 // src/inngest/commentWorkflow.inngest.ts
 import { prisma } from "../../db/index";
-import ApiResponse from "../../utility/ApiResponse";
 import { inngest } from "../client";
 import axios from "axios";
 
@@ -24,14 +23,20 @@ export const commentFetchScheduler = inngest.createFunction(
       while (attempts < maxAttemptsPerComment && !commentSuccessful) {
         try {
           response = await step.run(`fetch-model1-comment-${commentIndex + 1}-attempt-${attempts + 1}`, async () => {
-            return await axios.post(`${process.env.MODEL1_API_URL}/generate`, { timeout: 15000 });
+            return await axios.post(`${process.env.MODEL1_API_URL}/generate`, {}, { timeout: 15000 });
           });
 
           if (response?.data?.success) {
             commentSuccessful = true;
-            break;
+            console.log("efore");
+            
+            break;            
           }
+            console.log("after");
+
         } catch (err) {
+          console.log("error1", err);
+          
           console.error(`Error fetching comment ${commentIndex + 1}, attempt ${attempts + 1}:`, err);
           errors.push({ 
             commentIndex: commentIndex + 1, 
@@ -39,6 +44,8 @@ export const commentFetchScheduler = inngest.createFunction(
             error: (err as any)?.message || err 
           });
         }
+        console.log("Attempt", attempts);
+        
         attempts++;
       }
 
@@ -59,6 +66,9 @@ export const commentFetchScheduler = inngest.createFunction(
             }
           });
 
+          // console.log("success comment fetcher", newComment);
+          
+
           if (newComment) {
             successfulComments++;
             createdComments.push({ commentId: newComment.id, commentIndex: commentIndex + 1 });
@@ -69,6 +79,8 @@ export const commentFetchScheduler = inngest.createFunction(
             });
           }
         } catch (err) {
+          console.log("error2", err, `saving comment ${commentIndex + 1}`);
+          
           console.error(`Error saving comment ${commentIndex + 1} to database:`, err);
           errors.push({ 
             commentIndex: commentIndex + 1, 
@@ -82,21 +94,24 @@ export const commentFetchScheduler = inngest.createFunction(
         });
       }
     }
-
+      console.log("successfulComments", successfulComments);
     if (successfulComments === 0) {
-      return new ApiResponse(200, { 
-        message: "No RAW comments fetched", 
-        errors 
-      }, "Skipped - All attempts failed");
+      console.log("successfulComments is zero");
+      return {
+        message: "No RAW comments fetched",
+        successfulComments,
+        totalAttempted: commentsToGenerate,
+        errors,
+      };
     }
 
-    return new ApiResponse(200, { 
-      status: "raw", 
-      successfulComments, 
+    return {
+      status: "raw",
+      successfulComments,
       totalAttempted: commentsToGenerate,
       createdComments,
-      errors: errors.length > 0 ? errors : undefined
-    }, `${successfulComments}/${commentsToGenerate} comments fetched and saved as RAW`);
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 );
 
@@ -131,7 +146,7 @@ export const processRawComments = inngest.createFunction(
       }
       if (!comment) {
         if (i === 0) {
-          return new ApiResponse(200, "No eligible comments", "Skipped");
+          return {message: "No eligible comments", status: "Skipped"};
         }
         break;
       }
@@ -225,9 +240,18 @@ export const processRawComments = inngest.createFunction(
     }
 
     if (anyProcessed) {
-      return new ApiResponse(200, { status: "analyzed", processedCount, lastProcessedCommentId, errors }, "Comments processed and updated");
+      return {
+        status: "analyzed",
+        processedCount,
+        lastProcessedCommentId,
+        errors,
+      };
     } else {
-      return new ApiResponse(200, { message: "No eligible comments", errors }, "Skipped");
+      return {
+        message: "No eligible comments",
+        processedCount,
+        errors,
+      };
     }
   }
 );
