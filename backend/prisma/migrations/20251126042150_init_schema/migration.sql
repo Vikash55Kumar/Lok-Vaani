@@ -12,6 +12,24 @@ CREATE TABLE "public"."users" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."audit_logs" (
+    "id" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "userId" TEXT,
+    "entityType" TEXT,
+    "entityId" TEXT,
+    "details" JSONB,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "success" BOOLEAN NOT NULL DEFAULT true,
+    "errorMessage" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "public"."business_categories" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -27,15 +45,16 @@ CREATE TABLE "public"."business_categories" (
 CREATE TABLE "public"."posts" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "standardTitle" TEXT NOT NULL,
-    "standardDescription" TEXT NOT NULL,
+    "description" TEXT,
+    "standardTitle" TEXT,
+    "standardDescription" TEXT,
     "postType" TEXT NOT NULL,
     "issuedBy" TEXT NOT NULL,
     "issueDate" TIMESTAMP(3) NOT NULL,
     "deadline" TIMESTAMP(3),
     "language" TEXT NOT NULL,
-    "originalPdfUrl" TEXT,
+    "pdfBase64" TEXT,
+    "extractedText" TEXT,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -51,15 +70,15 @@ CREATE TABLE "public"."comments" (
     "companyId" TEXT,
     "businessCategoryId" TEXT NOT NULL,
     "stakeholderName" TEXT NOT NULL,
-    "rawText" TEXT NOT NULL,
-    "standardText" TEXT,
-    "processedText" TEXT,
+    "rawComment" TEXT NOT NULL,
+    "standardComment" TEXT,
     "language" TEXT,
-    "labeled" TEXT,
-    "tone" TEXT,
+    "sentiment" TEXT,
     "weightageScore" DOUBLE PRECISION,
     "summary" TEXT,
     "keywords" TEXT[],
+    "wordCount" INTEGER,
+    "sentimentScore" DOUBLE PRECISION,
     "status" TEXT NOT NULL DEFAULT 'RAW',
     "processingError" TEXT,
     "processingAttempts" INTEGER NOT NULL DEFAULT 0,
@@ -117,8 +136,47 @@ CREATE TABLE "public"."processing_queue" (
     CONSTRAINT "processing_queue_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "public"."draft_chunks" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "embedding" vector(768),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "draft_chunks_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."comment_vectors" (
+    "id" TEXT NOT NULL,
+    "commentId" TEXT NOT NULL,
+    "embedding" vector(768),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "comment_vectors_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_action_idx" ON "public"."audit_logs"("action");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_category_idx" ON "public"."audit_logs"("category");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_userId_idx" ON "public"."audit_logs"("userId");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_createdAt_idx" ON "public"."audit_logs"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_entityType_entityId_idx" ON "public"."audit_logs"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_success_idx" ON "public"."audit_logs"("success");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "business_categories_name_key" ON "public"."business_categories"("name");
@@ -159,6 +217,15 @@ CREATE INDEX "processing_queue_status_idx" ON "public"."processing_queue"("statu
 -- CreateIndex
 CREATE INDEX "processing_queue_priority_idx" ON "public"."processing_queue"("priority");
 
+-- CreateIndex
+CREATE INDEX "draft_chunks_postId_idx" ON "public"."draft_chunks"("postId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "comment_vectors_commentId_key" ON "public"."comment_vectors"("commentId");
+
+-- AddForeignKey
+ALTER TABLE "public"."audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "public"."comments" ADD CONSTRAINT "comments_postId_fkey" FOREIGN KEY ("postId") REFERENCES "public"."posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -173,3 +240,9 @@ ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_businessCategoryId_fk
 
 -- AddForeignKey
 ALTER TABLE "public"."post_summaries" ADD CONSTRAINT "post_summaries_postId_fkey" FOREIGN KEY ("postId") REFERENCES "public"."posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."draft_chunks" ADD CONSTRAINT "draft_chunks_postId_fkey" FOREIGN KEY ("postId") REFERENCES "public"."posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."comment_vectors" ADD CONSTRAINT "comment_vectors_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "public"."comments"("id") ON DELETE CASCADE ON UPDATE CASCADE;

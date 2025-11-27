@@ -81,13 +81,15 @@ model Post {
   deadline       DateTime?
   language       String   // 'ENGLISH', 'BILINGUAL', 'HINDI'
   pdfBase64      String?
+  extractedText  String?  @db.Text // AI Agent: Full cleaned draft text
   status         String   @default("ACTIVE") // 'ACTIVE', 'CLOSED', 'DRAFT'
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
-  comments  Comment[]
-  summaries PostSummary[]
+  comments    Comment[]
+  summaries   PostSummary[]
+  draftChunks DraftChunk[] // AI Agent: Vector chunks for semantic search
 
   @@map("posts")
 }
@@ -131,6 +133,7 @@ model Comment {
   post                   Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   company                Company?         @relation(fields: [companyId], references: [id])
   businessCategory       BusinessCategory @relation(fields: [businessCategoryId], references: [id])
+  vector                 CommentVector?   // AI Agent: 1-to-1 vector embedding
 
   // Indexes for performance
   @@index([postId])
@@ -195,5 +198,34 @@ model ProcessingQueue {
   @@index([status])
   @@index([priority])
   @@map("processing_queue")
+}
+
+// AI Agent: Draft text chunks with vector embeddings for semantic search
+model DraftChunk {
+  id        String                 @id @default(uuid())
+  postId    String
+  content   String                 @db.Text // The text content of this chunk
+  embedding Unsupported("vector(768)")? // Gemini embedding vector (768 dimensions)
+  createdAt DateTime               @default(now())
+
+  // Relations
+  post      Post                   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([postId])
+  @@map("draft_chunks")
+}
+
+// AI Agent: Comment vector embeddings for semantic search
+model CommentVector {
+  id        String                 @id @default(uuid())
+  commentId String                 @unique
+  embedding Unsupported("vector(768)")? // Gemini embedding vector (768 dimensions)
+  createdAt DateTime               @default(now())
+
+  // Relations
+  comment   Comment                @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_vectors")
 }
 
