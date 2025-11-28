@@ -1,36 +1,39 @@
-FROM python:3.11-slim
 
-# Set environment variables
+# 1. Use an NVIDIA CUDA base image instead of python:slim
+# This image includes the CUDA runtime and CUDNN libraries required for PyTorch
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# 2. Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONWARNINGS="ignore"
+    DEBIAN_FRONTEND=noninteractive
 
-# Install curl for health checks
+# 3. Install Python and system dependencies
+# Since the base image is Ubuntu, we need to install python manually
 RUN apt-get update && apt-get install -y \
-    curl \
+    python3.10 \
+    python3-pip \
+    python3-venv \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
+# 4. Create working directory
 WORKDIR /app
 
-# Copy requirements first for better Docker layer caching
+# 5. Copy requirements
 COPY requirements.txt .
 
-# Upgrade pip and install requirements with version pinning
-RUN pip install --upgrade pip==23.3.1
-RUN pip install --no-cache-dir -r requirements.txt
+# 6. Install Python dependencies
+# We use --index-url to force installing the CUDA-enabled version of PyTorch
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    python3 -m pip install -r requirements.txt
 
-# Copy application code
+# 7. Copy application code
 COPY . .
 
-# Expose the port the app runs on
-EXPOSE 8000
-ENV PORT=8000
-
-# Health check using the /active endpoint
-HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/active || exit 1
-
-# Use uvicorn directly since FastAPI app is designed for it
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# 8. Run the application
+# Using a shell script to ensure environment variables are loaded
+# CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 1200 --workers 1 --worker-class uvicorn.workers.UvicornWorker"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--timeout", "1200", "--workers", "1", "--worker-class", "uvicorn.workers.UvicornWorker"]
