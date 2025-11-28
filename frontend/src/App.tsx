@@ -84,7 +84,7 @@ function App() {
 
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="pt-[88px]">
+        <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/drafts" element={isAuthenticated ? <DraftPage /> : <Login />} />
