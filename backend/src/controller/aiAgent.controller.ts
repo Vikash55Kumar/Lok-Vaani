@@ -80,7 +80,7 @@ export const syncAgentContext = asyncHandler(async (req: Request, res: Response)
     const commentsWithoutVectors = await prisma.comment.findMany({
       where: {
         postId,
-        vector: null, // No CommentVector exists
+        commentVector: null, // No CommentVector exists
         isSpam: false, // Exclude spam
         status: "ANALYZED" // Only processed comments
       },
