@@ -1,15 +1,21 @@
---extra-index-url https://download.pytorch.org/whl/cpu
 
-numpy==1.24.4
-torch==2.6.0+cpu
-# transformers
-requests
-# flask
-deep-translator
-langdetect
-google-cloud-translate
-pandas
-gunicorn==21.2.0
-transformers>=4.30.0
+# Core ML and AI libraries
+torch==2.6.0
+transformers==4.38.2
+
+# Web framework
 flask>=2.3.0
-accelerate>=0.20.0
+gunicorn==21.2.0
+
+# Environment utilities
+python-dotenv
+
+# Required for AI models
+sentencepiece
+tokenizers
+accelerate
+IndicTransToolkit
+
+# Additional dependencies for transformers
+protobuf>=3.20.0
+safetensors>=0.3.0

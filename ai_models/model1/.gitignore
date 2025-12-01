@@ -1,7 +1,10 @@
 __pycache__/
 
 venv/
-
+.env
 .dockerignore
-
+app_copy.py
 app1.py
+model_cache/
+vertex_ai.json
+vertex_ai2.json
