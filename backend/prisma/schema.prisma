@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -75,7 +74,8 @@ model Post {
   pdfBase64           String?
   comments            Comment[]
   summaries           PostSummary[]
-
+  extractedText       String?       // <-- Add this line
+  draftChunks         DraftChunk[] 
   @@map("posts")
 }
 
@@ -107,6 +107,7 @@ model Comment {
   businessCategory   BusinessCategory @relation(fields: [businessCategoryId], references: [id])
   company            Company?         @relation(fields: [companyId], references: [id])
   post               Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentVector CommentVector?
 
   @@index([postId])
   @@index([status])
@@ -164,3 +165,26 @@ model ProcessingQueue {
   @@index([priority])
   @@map("processing_queue")
 }
+
+model DraftChunk {
+  id        String   @id @default(uuid())
+  postId    String
+  content   String
+  embedding Unsupported("vector(768)")
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("draft_chunks")
+}
+
+model CommentVector {
+  id        String   @id @default(uuid())
+  commentId String   @unique
+  embedding Unsupported("vector(768)")
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_vectors")
+}
+
