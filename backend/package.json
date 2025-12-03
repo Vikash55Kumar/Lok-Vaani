@@ -19,6 +19,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/json2csv": "^5.0.7",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.15.21",
@@ -43,6 +44,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "inngest": "^3.40.3",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "nodemon": "^3.1.10",
