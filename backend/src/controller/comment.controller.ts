@@ -1,3 +1,4 @@
+import { Parser } from 'json2csv';
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utility/asyncHandler';
 import ApiResponse from '../utility/ApiResponse';
@@ -403,6 +404,49 @@ const verifyCompanyComment = asyncHandler(async (req: Request, res: Response) =>
   }
 });
 
+const getAllCommentsWithSentimentCSV = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        standardComment: true,
+        sentiment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const fields = ['standardComment', 'sentiment'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(comments);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('comments_with_sentiment.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error("Error exporting comments as CSV:", error);
+    throw new ApiError(500, "Failed to export comments as CSV");
+  }
+});
+
+const getAllCommentsWithSentiment = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        rawComment: true,
+        sentiment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // Optionally, format as CSV or tabular JSON for export
+    res.status(200).json(new ApiResponse(200, comments, "All comments with sentiment fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching all comments:", error);
+    throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
 export {
   getCommentsByPostId,
   getCommentById,
@@ -410,5 +454,7 @@ export {
   getCommentCounts,
   getCategorizedCommentCounts,
   getCommentsWeightage,
-  verifyCompanyComment
+  verifyCompanyComment,
+  getAllCommentsWithSentiment,
+  getAllCommentsWithSentimentCSV
 };

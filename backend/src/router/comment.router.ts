@@ -5,7 +5,9 @@ import {
   getCommentCounts,
   getCategorizedCommentCounts,
   getCommentsWeightage,
-  verifyCompanyComment
+  verifyCompanyComment,
+  getAllCommentsWithSentimentCSV,
+  getAllCommentsWithSentiment
 } from '../controller/comment.controller';
 
 const router = Router();
@@ -23,5 +25,8 @@ router.get('/get-comment-by-id/:id', getCommentById);
 
 // Verify if company has existing comment
 router.get('/verify-company', verifyCompanyComment);
+
+router.get('/tabular-comment-csv', getAllCommentsWithSentimentCSV);
+router.get('/tabular-comment', getAllCommentsWithSentiment);
 
 export default router;

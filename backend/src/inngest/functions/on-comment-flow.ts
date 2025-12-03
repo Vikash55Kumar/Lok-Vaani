@@ -73,6 +73,7 @@ export const commentFetchScheduler = inngest.createFunction(
                   businessCategoryId: stepData.businessCategoryId,
                   stakeholderName: stepData.companyName,
                   rawComment: stepData.comment,
+                  commentType: stepData.commentType,
                   wordCount: stepData.wordCount,
                   status: "RAW"
                 }
@@ -154,7 +155,9 @@ export const processRawComments = inngest.createFunction(
         analysisResult = await step.run(`call-model2-attempt-${comment.id}-1`, async () => {
           const response = await axios.post(
             `${process.env.MODEL2_API_URL}/analyze`,
-            { comment: comment.rawComment },
+            { comment: comment.rawComment,
+              commentType: comment.commentType,
+             },
             { timeout: 60000 }
           );
           // ✅ FIX: Only return the data payload

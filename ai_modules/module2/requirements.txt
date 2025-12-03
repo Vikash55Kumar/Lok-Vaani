@@ -1,20 +1,21 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 # Core ML and AI libraries
-torch==2.6.0
+torch==2.6.0+cpu
 transformers==4.38.2
 
 # Web framework
 flask>=2.3.0
 gunicorn==21.2.0
 
-# Environment utilities
-python-dotenv
+# Environment and HTTP requests
+python-dotenv>=0.19.0
+requests>=2.28.0
 
 # Required for AI models
 sentencepiece
 tokenizers
-accelerate
-IndicTransToolkit
+argostranslate
 
 # Additional dependencies for transformers
 protobuf>=3.20.0

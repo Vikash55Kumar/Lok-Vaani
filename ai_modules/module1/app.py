@@ -12,7 +12,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import torch
 from transformers import pipeline as hf_pipeline
 from dotenv import load_dotenv
 import requests
@@ -25,14 +24,13 @@ load_dotenv()
 # --- CONFIGURATION ---
 LLM_MODE = os.getenv("LLM_MODE")
 MODEL_NAME = os.getenv("LOCAL_MODEL_NAME",)
-DEVICE = os.getenv("DEVICE",)  # Force CPU for cloud deployment
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "150"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
 
 print(f"🚀 Initializing LokVaani AI Generator")
 print(f"   - Mode: {LLM_MODE}")
 print(f"   - Model: {MODEL_NAME}")
-print(f"   - Device: {DEVICE}")
+print(f"   - Device: CPU")
 
 try:
     PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -165,17 +163,15 @@ class SimpleCommentGenerator:
         self.total_requests = 0
 
     def _load_llm(self):
-        """Robust Model Loading with GPU/CPU logic"""
+        """Load LLM pipeline for CPU-only deployment"""
         try:
-            print(f"⏳ Loading LLM pipeline...")
+            print(f"⏳ Loading LLM pipeline for CPU...")
             
-            # Use simple device configuration like in previous version
-            device_id = 0 if DEVICE == "cuda" else -1
-            
+            # Force CPU-only configuration
             self.llm_pipeline = hf_pipeline(
                 "text-generation",
                 model=MODEL_NAME,
-                device=device_id,
+                device=-1,  # CPU only
                 model_kwargs={"cache_dir": "./model_cache"}
             )
             print("✅ LLM loaded successfully.")
@@ -738,8 +734,7 @@ def status():
         "status": "active", 
         "model": MODEL_NAME, 
         "mode": LLM_MODE,
-        "device": DEVICE,
-        "gpu_available": torch.cuda.is_available(),
+        "device": "cpu",
         "gemini_available": bool(llm),
         "gemini_project": PROJECT_ID if llm else None
     }
@@ -763,7 +758,7 @@ async def get_config():
         "local_model": MODEL_NAME,
         "llm_loaded": bool(generator.llm_pipeline),
         "gemini_loaded": bool(llm),
-        "device": DEVICE,
+        "device": "cpu",
         "categories_loaded": len(generator.categories),
         "posts_loaded": len(generator.posts),
         "companies_loaded": len(generator.companies),

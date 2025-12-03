@@ -104,6 +104,7 @@ model Comment {
   standardComment    String?
   wordCount          Int?
   sentiment          String?
+  commentType        String?
   businessCategory   BusinessCategory @relation(fields: [businessCategoryId], references: [id])
   company            Company?         @relation(fields: [companyId], references: [id])
   post               Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
