@@ -1,0 +1,11 @@
+# Ignore virtual environment folders
+venv/
+*/venv/
+
+# Ignore keys folder
+keys/
+*/keys/
+
+# Ignore .env file (both Windows and Linux formats)
+.env
+*/.env
