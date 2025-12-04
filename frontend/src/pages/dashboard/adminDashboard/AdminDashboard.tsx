@@ -16,6 +16,9 @@ import NCOCodeManagement from './components/NCOCodeManagement';
 import DatasetManagement from './components/DatasetManagement';
 // import SystemConfiguration from './components/SystemConfiguration';
 import AuditLogs from './components/AuditLogs';
+import AIAgentChatbot from '../AIAgentChatbot';
+import { useChatbot } from '../../../context/ChatbotContext';
+import { cn } from '@/lib/utils';
 
 type AdminTab = 
   | 'overview' 
@@ -28,6 +31,7 @@ type AdminTab =
   | 'audit';
 
 const AdminDashboard: React.FC = () => {
+  const { isOpen } = useChatbot();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -54,7 +58,7 @@ const AdminDashboard: React.FC = () => {
   const CurrentComponent = currentTab?.component;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isOpen ? 'w-1/2' : 'w-full'}`}>
       {/* Enhanced Admin Header */}
       <div className="bg-white shadow-lg border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,10 +201,10 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex space-x-8">
+        <div className={cn("flex", isOpen ? "flex-col space-y-8" : "space-x-8")}>
           {/* Sidebar Navigation */}
-          <div className="w-64 flex-shrink-0">
-            <nav className="space-y-2">
+          <div className={cn("flex-shrink-0", isOpen ? "w-full" : "w-64")}>
+            <nav className={cn("space-y-2", isOpen && "grid grid-cols-2 gap-2 space-y-0")}>
               {adminTabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -227,6 +231,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      <AIAgentChatbot />
     </div>
   );
 };
