@@ -8,9 +8,9 @@ import CommentHeading from './components/CommentHeading';
 import { useEffect, useCallback } from 'react';
 // import { useAuth } from '@/context/useAuth';
 import { getCategoryCommentsCountAsync, getCommentsByPostIdAsync, getCommentsCountAsync, getCommentsWeightageAsync } from '@/store/slices/commentSlice';
-import SummariesByCategory from './components/SummariesByCategory';
+// import SummariesByCategory from './components/SummariesByCategory';
 import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
-import { AlertsSection, CommentSummary, Sidebar } from './components';
+import { CommentSummary, Sidebar } from './components';
 import SentimentLineChart from './components/SentimentLineChart';
 
 // Dummy data for alerts
@@ -55,7 +55,7 @@ const CommentAnalysis = () => {
   const postId = draftId;
 
   // Initialize comprehensive socket connection for real-time updates
-  const { isConnected, connections, errors, refreshAll } = useCommentSocketUpdates({
+  const { connections, errors } = useCommentSocketUpdates({
     initialData: {
       positive: commentCounts?.positive || 0,
       negative: commentCounts?.negative || 0,

@@ -3,7 +3,7 @@ import { updateSocketCommentCounts } from '../../../../store/slices/commentSlice
 import { useSocketProgress } from '../../../../hooks/useSocketProgress';
 import { useEffect, useState } from 'react';
 import { socketUrl } from '../../../../utils/baseApi';
-import { MessageSquare, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { MessageSquare, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 export default function CommentHeading() {
   const { commentCounts } = useAppSelector(state => state.comment);

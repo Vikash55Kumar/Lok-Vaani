@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/redux';
 import { updateSocketCategoryData } from '../../../../store/slices/commentSlice';
-import StakeholderCard from './StakeholderCard';
+// import StakeholderCard from './StakeholderCard';
 import { useSocketProgress } from '../../../../hooks/useSocketProgress';
-import type { StakeholderData } from '@/types';
+// import type { StakeholderData } from '@/types';
 import { socketUrl } from '@/utils/baseApi';
 
 const SentimentBreakdown: React.FC = () => {
@@ -55,28 +55,28 @@ const SentimentBreakdown: React.FC = () => {
     }
   }, [industrialistSocketData, industrialistConnected, dispatch]);
 
-  // Transform API data to component format
-  const normalUsersData: StakeholderData = {
-    totalComments: categoryCommentCounts 
-      ? categoryCommentCounts.user.positive + categoryCommentCounts.user.negative + categoryCommentCounts.user.neutral
-      : 0,
-    stats: {
-      positive: categoryCommentCounts?.user.positive || 0,
-      negative: categoryCommentCounts?.user.negative || 0,
-      neutral: categoryCommentCounts?.user.neutral || 0
-    }
-  };
+  // // Transform API data to component format
+  // const normalUsersData: StakeholderData = {
+  //   totalComments: categoryCommentCounts 
+  //     ? categoryCommentCounts.user.positive + categoryCommentCounts.user.negative + categoryCommentCounts.user.neutral
+  //     : 0,
+  //   stats: {
+  //     positive: categoryCommentCounts?.user.positive || 0,
+  //     negative: categoryCommentCounts?.user.negative || 0,
+  //     neutral: categoryCommentCounts?.user.neutral || 0
+  //   }
+  // };
 
-  const industrialistsData: StakeholderData = {
-    totalComments: categoryCommentCounts 
-      ? categoryCommentCounts.business.positive + categoryCommentCounts.business.negative + categoryCommentCounts.business.neutral
-      : 0,
-    stats: {
-      positive: categoryCommentCounts?.business.positive || 0,
-      negative: categoryCommentCounts?.business.negative || 0,
-      neutral: categoryCommentCounts?.business.neutral || 0
-    }
-  };
+  // const industrialistsData: StakeholderData = {
+  //   totalComments: categoryCommentCounts 
+  //     ? categoryCommentCounts.business.positive + categoryCommentCounts.business.negative + categoryCommentCounts.business.neutral
+  //     : 0,
+  //   stats: {
+  //     positive: categoryCommentCounts?.business.positive || 0,
+  //     negative: categoryCommentCounts?.business.negative || 0,
+  //     neutral: categoryCommentCounts?.business.neutral || 0
+  //   }
+  // };
 
   return (
     <div className="rounded-xl border border-gray-100 transition-shadow duration-300">
