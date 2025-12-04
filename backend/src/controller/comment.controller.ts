@@ -1,3 +1,4 @@
+import { Parser } from 'json2csv';
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utility/asyncHandler';
 import ApiResponse from '../utility/ApiResponse';
@@ -370,11 +371,111 @@ const getCommonComments = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+// Verify if a company already has a comment for a specific post
+const verifyCompanyComment = asyncHandler(async (req: Request, res: Response) => {
+  const { postId, companyId } = req.query;
+
+  if (!postId || !companyId) {
+    throw new ApiError(400, "Post ID and Company ID are required");
+  }
+
+  try {
+    const existingComment = await prisma.comment.findFirst({
+      where: {
+        postId: postId as string,
+        companyId: companyId as string
+      },
+      select: {
+        id: true
+      }
+    });
+
+    const hasComment = !!existingComment;
+    console.log("comment verify hit");
+
+    res.status(200).json(new ApiResponse(200, { 
+      hasComment,
+      postId,
+      companyId 
+    }, hasComment ? "Company already has a comment for this post" : "Company has no comment for this post"));
+  } catch (error) {
+    console.error("Error verifying company comment:", error);
+    throw new ApiError(500, "Failed to verify company comment");
+  }
+});
+
+const getAllCommentsWithSentimentCSV = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        standardComment: true,
+        sentiment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const fields = ['standardComment', 'sentiment'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(comments);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('comments_with_sentiment.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error("Error exporting comments as CSV:", error);
+    throw new ApiError(500, "Failed to export comments as CSV");
+  }
+});
+
+const getAllCommentsWithSentiment = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        rawComment: true,
+        sentiment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // Optionally, format as CSV or tabular JSON for export
+    res.status(200).json(new ApiResponse(200, comments, "All comments with sentiment fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching all comments:", error);
+    throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
+const getAllComments = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        rawComment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // Return only the comment text, not the key
+    const commentList = comments.map(c => c.rawComment);
+
+    res.status(200).json(new ApiResponse(200, commentList, "All comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching all comments:", error);
+    throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
 export {
   getCommentsByPostId,
   getCommentById,
   getCommonComments,
   getCommentCounts,
   getCategorizedCommentCounts,
-  getCommentsWeightage
+  getCommentsWeightage,
+  verifyCompanyComment,
+  getAllCommentsWithSentiment,
+  getAllCommentsWithSentimentCSV,
+  getAllComments
 };

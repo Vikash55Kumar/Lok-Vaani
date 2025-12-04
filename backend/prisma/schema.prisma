@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -8,41 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// MCA Officials who access the dashboard
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  password     String
-  role         String   // 'ADMIN', 'ANALYST'
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  auditLogs    AuditLog[]
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  password  String
+  role      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
 
   @@map("users")
 }
 
-// Comprehensive audit logging for security, authentication, and system events
 model AuditLog {
   id           String   @id @default(uuid())
-  action       String   // Action performed (e.g., 'LOGIN_SUCCESS', 'CREATE_BUSINESS_CATEGORY', 'UPDATE_COMMENT')
-  category     String   // Category of action ('AUTH', 'SECURITY', 'CONFIG', 'NCO', 'USER_ACTION')
-  userId       String?  // User who performed the action (NULL for system actions)
-  entityType   String?  // Type of entity affected (e.g., 'COMMENT', 'POST', 'BUSINESS_CATEGORY')
-  entityId     String?  // ID of the affected entity
-  details      Json?    // Additional context data
-  ipAddress    String?  // IP address of the user
-  userAgent    String?  // User agent string
-  success      Boolean  @default(true) // Whether the action was successful
-  errorMessage String?  @db.Text // Error message if action failed
+  action       String
+  category     String
+  userId       String?
+  entityType   String?
+  entityId     String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  success      Boolean  @default(true)
+  errorMessage String?
   createdAt    DateTime @default(now())
-
-  // Relations
   user         User?    @relation(fields: [userId], references: [id])
 
-  // Indexes for performance and querying
   @@index([action])
   @@index([category])
   @@index([userId])
@@ -52,87 +44,72 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Business categories with dynamic weighting (includes both business and user categories)
 model BusinessCategory {
   id             String    @id @default(uuid())
-  name           String    @unique // 'Corporate Debtor', 'Creditor to a Corporate Debtor', 'User', etc.
+  name           String    @unique
   weightageScore Float     @default(0.5)
-  categoryType   String    @default("BUSINESS") // 'BUSINESS' or 'USER'
+  categoryType   String    @default("BUSINESS")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-
-  // Relations
-  companies Company[]
-  comments  Comment[]
+  comments       Comment[]
+  companies      Company[]
 
   @@map("business_categories")
 }
 
-// Main posts/drafts for consultation
 model Post {
-  id             String   @id @default(uuid())
-  title          String
-  description    String?
-  standardTitle  String?
+  id                  String        @id @default(uuid())
+  title               String
+  description         String?
+  standardTitle       String?
   standardDescription String?
-  postType       String   // 'PUBLIC_CONSULTATION', 'RECRUITMENT_NOTICE', 'DRAFT_RULES'
-  issuedBy       String
-  issueDate      DateTime
-  deadline       DateTime?
-  language       String   // 'ENGLISH', 'BILINGUAL', 'HINDI'
-  pdfBase64      String?
-  status         String   @default("ACTIVE") // 'ACTIVE', 'CLOSED', 'DRAFT'
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  comments  Comment[]
-  summaries PostSummary[]
-
+  postType            String
+  issuedBy            String
+  issueDate           DateTime
+  deadline            DateTime?
+  language            String
+  status              String        @default("ACTIVE")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  pdfBase64           String?
+  comments            Comment[]
+  summaries           PostSummary[]
+  extractedText       String?       // <-- Add this line
+  draftChunks         DraftChunk[] 
   @@map("posts")
 }
 
-// Individual comments from stakeholders
 model Comment {
-  id                     String           @id @default(uuid())
-  postId                 String
-  postTitle              String?          // NULL for general comments
-  
-  // Stakeholder information - either company or individual user
-  companyId              String?          // NULL for individual users
-  businessCategoryId     String           // Foreign key to BusinessCategory (includes user category)
-  stakeholderName        String           // Name of company or individual
-  
-  // AI Processing fields
-  rawComment             String           @db.Text
-  standardComment        String?          @db.Text // Standardized English translation
-  language               String?          // 'en', 'hi', 'hi-en'
-  sentiment              String?          // 'POSITIVE', 'NEGATIVE', 'NEUTRAL'
-  weightageScore         Float?           // Final calculated weightage score
-  summary                String?          @db.Text // AI-generated summary
-  keywords               String[]         // Array of extracted keywords
-  wordCount              Int?             // Word count of the processed comment
-  sentimentScore         Float?           // Sentiment score from -1 to +1
-  // Processing status fields
-  status                 String           @default("RAW") // 'RAW', 'PROCESSING', 'ANALYZED', 'FAILED'
-  processingError        String?          @db.Text // Error message if processing fails
-  processingAttempts     Int              @default(0)
-  processedAt            DateTime?        // Timestamp of last processing attempt
-  modelVersion           String?
-  
-  // Moderation fields
-  isFlagged              Boolean          @default(false)
-  isSpam                 Boolean          @default(false)
-  
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
-  
-  // Relations
-  post                   Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  company                Company?         @relation(fields: [companyId], references: [id])
-  businessCategory       BusinessCategory @relation(fields: [businessCategoryId], references: [id])
+  id                 String           @id @default(uuid())
+  postId             String
+  postTitle          String?
+  companyId          String?
+  businessCategoryId String
+  stakeholderName    String
+  language           String?
+  weightageScore     Float?
+  summary            String?
+  keywords           String[]
+  status             String           @default("RAW")
+  processingError    String?
+  processingAttempts Int              @default(0)
+  processedAt        DateTime?
+  modelVersion       String?
+  isFlagged          Boolean          @default(false)
+  isSpam             Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  rawComment         String
+  sentimentScore     Float?
+  standardComment    String?
+  wordCount          Int?
+  sentiment          String?
+  commentType        String?
+  businessCategory   BusinessCategory @relation(fields: [businessCategoryId], references: [id])
+  company            Company?         @relation(fields: [companyId], references: [id])
+  post               Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentVector CommentVector?
 
-  // Indexes for performance
   @@index([postId])
   @@index([status])
   @@index([createdAt])
@@ -142,58 +119,73 @@ model Comment {
 }
 
 model Company {
-  id                   String           @id @default(uuid())
-  name                 String           @unique
-  uniNumber            String?          // Unique identifier if available
-  state                String?
-  businessCategoryId   String           // Foreign key to BusinessCategory
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-
-  // Relations
-  businessCategory     BusinessCategory @relation(fields: [businessCategoryId], references: [id])
-  comments             Comment[]
+  id                 String           @id @default(uuid())
+  name               String           @unique
+  uniNumber          String?
+  state              String?
+  businessCategoryId String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  comments           Comment[]
+  businessCategory   BusinessCategory @relation(fields: [businessCategoryId], references: [id])
 
   @@index([businessCategoryId])
   @@map("companies")
 }
 
-// Timeline snapshots of overall analysis
 model PostSummary {
   id            String   @id @default(uuid())
   postId        String
-  summaryText   String   @db.Text
+  summaryText   String
   totalComments Int      @default(0)
   positiveCount Int      @default(0)
   negativeCount Int      @default(0)
   neutralCount  Int      @default(0)
-  weightedScore Float?   // Overall weighted sentiment score
-  topKeywords   String[] // Most frequent keywords at this time
+  weightedScore Float?
+  topKeywords   String[]
   createdAt     DateTime @default(now())
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  // Relations
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  // Indexes
   @@index([postId])
   @@index([createdAt])
   @@map("post_summaries")
 }
 
-// Queue for asynchronous processing (optional, can use Redis instead)
 model ProcessingQueue {
   id          String   @id @default(uuid())
   commentId   String   @unique
-  priority    Int      @default(1) // Higher priority for certain categories
+  priority    Int      @default(1)
   attempts    Int      @default(0)
   maxAttempts Int      @default(3)
-  status      String   @default("PENDING") // 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
-  errorLog    String?  @db.Text
+  status      String   @default("PENDING")
+  errorLog    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([status])
   @@index([priority])
   @@map("processing_queue")
+}
+
+model DraftChunk {
+  id        String   @id @default(uuid())
+  postId    String
+  content   String
+  embedding Unsupported("vector(768)")
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("draft_chunks")
+}
+
+model CommentVector {
+  id        String   @id @default(uuid())
+  commentId String   @unique
+  embedding Unsupported("vector(768)")
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_vectors")
 }
 

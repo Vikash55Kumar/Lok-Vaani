@@ -4,7 +4,10 @@ import {
   getCommentById,
   getCommentCounts,
   getCategorizedCommentCounts,
-  getCommentsWeightage
+  getCommentsWeightage,
+  verifyCompanyComment,
+  getAllCommentsWithSentimentCSV,
+  getAllCommentsWithSentiment
 } from '../controller/comment.controller';
 
 const router = Router();
@@ -19,5 +22,11 @@ router.get('/category-comment-counts/:postId', getCategorizedCommentCounts);
 router.get('/comment-weightage/:postId', getCommentsWeightage);
 // Get comment by ID
 router.get('/get-comment-by-id/:id', getCommentById);
+
+// Verify if company has existing comment
+router.get('/verify-company', verifyCompanyComment);
+
+router.get('/tabular-comment-csv', getAllCommentsWithSentimentCSV);
+router.get('/tabular-comment', getAllCommentsWithSentiment);
 
 export default router;

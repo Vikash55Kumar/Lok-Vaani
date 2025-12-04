@@ -4,4 +4,6 @@ venv/
 
 .dockerignore
 
+service_account.json
+.env
 app1.py
