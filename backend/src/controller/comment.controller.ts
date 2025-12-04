@@ -447,6 +447,26 @@ const getAllCommentsWithSentiment = asyncHandler(async (req: Request, res: Respo
   }
 });
 
+const getAllComments = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { status: 'ANALYZED' },
+      select: {
+        rawComment: true,
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // Return only the comment text, not the key
+    const commentList = comments.map(c => c.rawComment);
+
+    res.status(200).json(new ApiResponse(200, commentList, "All comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching all comments:", error);
+    throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
 export {
   getCommentsByPostId,
   getCommentById,
@@ -456,5 +476,6 @@ export {
   getCommentsWeightage,
   verifyCompanyComment,
   getAllCommentsWithSentiment,
-  getAllCommentsWithSentimentCSV
+  getAllCommentsWithSentimentCSV,
+  getAllComments
 };
