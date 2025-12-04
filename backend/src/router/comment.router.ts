@@ -7,7 +7,8 @@ import {
   getCommentsWeightage,
   verifyCompanyComment,
   getAllCommentsWithSentimentCSV,
-  getAllCommentsWithSentiment
+  getAllCommentsWithSentiment,
+  getAllComments
 } from '../controller/comment.controller';
 
 const router = Router();
@@ -28,5 +29,6 @@ router.get('/verify-company', verifyCompanyComment);
 
 router.get('/tabular-comment-csv', getAllCommentsWithSentimentCSV);
 router.get('/tabular-comment', getAllCommentsWithSentiment);
+router.get('/cloud-comment', getAllComments);
 
 export default router;
