@@ -12,6 +12,9 @@ import { getCategoryCommentsCountAsync, getCommentsByPostIdAsync, getCommentsCou
 import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
 import { CommentSummary, Sidebar } from './components';
 import SentimentLineChart from './components/SentimentLineChart';
+import AIAgentChatbot from '../AIAgentChatbot';
+import { useChatbot } from '../../../context/ChatbotContext';
+import { cn } from '@/lib/utils';
 
 
 // Dummy data for alerts
@@ -41,6 +44,7 @@ const dashboardData = {
 };
 
 const CommentAnalysis = () => {
+  const { isOpen } = useChatbot();
   const dispatch = useAppDispatch();
   const { draftId } = useParams<{ draftId: string }>();
   
@@ -140,13 +144,13 @@ const CommentAnalysis = () => {
   }
 
   return (
-    <div className=" bg-white font-sans relative min-h-screen">    
+    <div className={`bg-white font-sans relative min-h-screen transition-all duration-300 ${isOpen ? 'w-1/2' : 'w-full'}`}>    
       <Sidebar />
       <div className="py-4 ml-14">
         <div className="w-full px-2">
           {/* Main Heading and Featured Comments */}
-          <div className="flex flex-col xl:flex-row gap-4 items-start">
-            <div className="w-full xl:w-[60%]">
+          <div className={cn("flex flex-col gap-4 items-start", !isOpen && "xl:flex-row")}>
+            <div className={cn("w-full", !isOpen && "xl:w-[60%]")}>
               <CommentHeading />
   
               {/* Sentiment Trends Chart */}
@@ -159,7 +163,7 @@ const CommentAnalysis = () => {
                  <WordCloud />
               </div>
             </div>
-            <div className="w-full xl:w-[40%]">
+            <div className={cn("w-full", !isOpen && "xl:w-[40%]")}>
               <SentimentAnalysis />
             </div>
           </div>
@@ -186,6 +190,7 @@ const CommentAnalysis = () => {
           </section>
         </div>
       </div>
+      <AIAgentChatbot />
     </div>
   );
 };
