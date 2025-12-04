@@ -15,29 +15,29 @@ const SentimentDonutChart: React.FC<SentimentDonutChartProps> = ({ data }) => {
   // Prepare data for donut chart
   const chartData = [
     { 
-      label: `Positive :        ${positivePercentage}%`,
+      label: `Positive : ${positivePercentage}%`,
       value: data.positive, 
-      color: '#10b981', // emerald-500
+      color: '#93c5fd', // blue-300
       percentage: positivePercentage
     },
     { 
-      label: `Negative :        ${negativePercentage}%`, 
+      label: `Negative : ${negativePercentage}%`, 
       value: data.negative, 
-      color: '#ef4444', // red-500
+      color: '#3b82f6', // blue-500
       percentage: negativePercentage
     },
     { 
-      label: `Neutral :        ${neutralPercentage}%`, 
+      label: `Neutral :${neutralPercentage}%`, 
       value: data.neutral, 
-      color: '#f59e0b', // amber-500
+      color: '#1e40af', // blue-800
       percentage: neutralPercentage
     },
   ];
 
   const settings = {
-    margin: { right: 5, left: 5, top: 5, bottom: 5 },
-    width: 300,
-    height: 300,
+    margin: { right: 2, left: 3, top: 2, bottom: 0 },
+    width: 150,
+    height: 150,
   };
 
   return (
@@ -46,8 +46,8 @@ const SentimentDonutChart: React.FC<SentimentDonutChartProps> = ({ data }) => {
       <div className="mb-4 transition-transform duration-300 hover:scale-105">
         <PieChart
           series={[{ 
-            innerRadius: 60, 
-            outerRadius: 120, 
+            innerRadius: 30, 
+            outerRadius: 60, 
             data: chartData,
             highlightScope: { },
             faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },

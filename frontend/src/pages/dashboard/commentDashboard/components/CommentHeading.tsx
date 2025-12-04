@@ -3,6 +3,8 @@ import { updateSocketCommentCounts } from '../../../../store/slices/commentSlice
 import { useSocketProgress } from '../../../../hooks/useSocketProgress';
 import { useEffect, useState } from 'react';
 import { socketUrl } from '../../../../utils/baseApi';
+import { MessageSquare, ThumbsUp, ThumbsDown } from 'lucide-react';
+
 export default function CommentHeading() {
   const { commentCounts } = useAppSelector(state => state.comment);
   const dispatch = useAppDispatch();
@@ -59,63 +61,46 @@ export default function CommentHeading() {
   const neutralComments = liveData.neutral;
 
   return (
-      <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="text-center mb-4">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <h1 className="text-[28px] font-semibold text-gray-500 tracking-widest">
-              TOTAL COMMENTS ANALYZED
-            </h1>
-            {/* Socket Status Indicator */}
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${
-                isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-              }`}></div>
-              <span className={`text-sm font-medium ${
-                isConnected ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {isConnected ? 'Live' : 'Offline'}
-              </span>
-            </div>
-          </div>
-          <div className="text-6xl font-bold text-[#0846AA] mb-2">
-            {totalComments.toLocaleString()}
-          </div>
-          <p className="text-[#65758B] text-2xl">Comments Processed</p>
-        </div>
-
-        {/* Stats Cards in Row */}
-        <div className="flex flex-col lg:flex-row gap-8 justify-center items-stretch">
-          {/* Positive Comments Card */}
-          <div className="flex flex-col justify-center text-center bg-white rounded-xl border-l-4 border-green-400 py-4 shadow-sm min-w-0 flex-1 max-w-sm">
-            <h3 className="text-gray-700 font-medium text-lg">
-                Positive Comments
-            </h3>
-            <span className="text-3xl font-bold text-[#0846AA] mt-4">
-              {positiveComments.toLocaleString()}
-            </span>
-          </div>
-
-          {/* Negative Comments Card */}
-          <div className="flex flex-col justify-center text-center bg-white rounded-xl border-l-4 border-red-400 py-4 shadow-sm min-w-0 flex-1 max-w-sm">
-            <h3 className="text-gray-700 font-medium text-lg">
-                Negative Comments
-            </h3>
-            <span className="text-3xl font-bold text-[#0846AA] mt-4">
-              {negativeComments.toLocaleString()}
-            </span>
-          </div>
-
-          {/* Neutral Comments Card */}
-          <div className="flex flex-col justify-center text-center bg-white rounded-xl border-l-4 border-yellow-400 py-4 shadow-sm min-w-0 flex-1 max-w-sm">
-            <h3 className="text-gray-700 font-medium text-lg">
-                Neutral Comments
-            </h3>
-            <span className="text-3xl font-bold text-[#0846AA] mt-4">
-              {neutralComments.toLocaleString()}
-            </span>
+    <div className="w-full bg-white rounded-none border border-gray-200 px-6 py-5 shadow-sm">
+      <div className="flex flex-wrap items-center">
+        
+        {/* Total Comments */}
+        <div className="flex-1 pr-6 border-r border-gray-200 min-w-[120px]">
+          <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Total Comments</p>
+          <div className="flex items-center gap-2 mt-1">
+            <MessageSquare className="w-5 h-5 text-gray-600" />
+            <p className="text-2xl font-bold text-blue-900">{totalComments.toLocaleString()}</p>
           </div>
         </div>
+
+        {/* Positive */}
+        <div className="flex-1 px-6 border-r border-gray-200 min-w-[120px]">
+          <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Positive</p>
+          <div className="flex items-center gap-2 mt-1">
+            <ThumbsUp className="w-5 h-5 text-gray-600" />
+            <p className="text-2xl font-bold text-green-600">{positiveComments.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Negative */}
+        <div className="flex-1 px-6 border-r border-gray-200 min-w-[120px]">
+          <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Negative</p>
+          <div className="flex items-center gap-2 mt-1">
+            <ThumbsDown className="w-5 h-5 text-gray-600" />
+            <p className="text-2xl font-bold text-red-600">{negativeComments.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Neutral */}
+        <div className="flex-1 pl-6 min-w-[120px]">
+          <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Neutral</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-2xl font-semi-bold text-gray-600 leading-none">~</span>
+            <p className="text-2xl font-bold text-yellow-500">{neutralComments.toLocaleString()}</p>
+          </div>
+        </div>
+
       </div>
+    </div>
   );
 }

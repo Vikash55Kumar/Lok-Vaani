@@ -54,8 +54,21 @@ const Navbar: React.FC = () => {
     <>
       {/* Top Bar with MCA Logo */}
       <div className="bg-white w-full border-b border-slate-200 font-sans">
-        <div className="max-w-7xl mx-auto px-6 py-2 flex justify-center sm:justify-start">
+        <div className="max-w-7xl mx-auto px-6 py-2 flex justify-center sm:justify-start items-center gap-4">
            <img src={McaLogo} alt="MCA21" className="h-16 w-auto object-contain" />
+           <div className="hidden sm:block h-12 w-px bg-slate-300"></div>
+           <div className="hidden sm:flex flex-col items-start">
+             <h2 className="text-[#092044] font-medium text-sm tracking-wide">EMPOWERING BUSINESS, PROTECTING INVESTORS</h2>
+             <div className="flex items-center gap-2 text-xs font-medium mt-1">
+               <span className="text-[#e69626]">REGULATOR</span>
+               <span className="text-blue-900">•</span>
+               <span className="text-[#26a365]">INTEGRATOR</span>
+               <span className="text-blue-900">•</span>
+               <span className="text-[#e63f3f]">FACILITATOR</span>
+               <span className="text-blue-900">•</span>
+               <span className="text-[#0075b0]">EDUCATOR</span>
+             </div>
+           </div>
         </div>
       </div>
 

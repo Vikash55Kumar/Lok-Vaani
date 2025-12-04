@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
+import { PieChart, ChartColumnBig } from 'lucide-react';
 import SentimentWeightageChart from './SentimentWeightageChart';
 import SentimentDonutChart from './SentimentDonutChart';
 import { updateSocketWeightage } from '../../../../store/slices/commentSlice';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/redux';
 import { useSocketProgress } from '../../../../hooks/useSocketProgress';
 import { socketUrl } from '@/utils/baseApi';
+
+import { FeaturedComment } from './FeaturedComment';
 
 // Interface for weighted socket data
 interface WeightedSocketData {
@@ -66,31 +69,59 @@ const SentimentAnalysis: React.FC = () => {
     }, [socketData, isConnected, dispatch]);
     
   return (
-    <div className="rounded-xl pt-8 border border-gray-100 transition-shadow duration-300">
+    <div >
       {/* Charts Container - Side by Side */}
-        <div className="w-full flex flex-row gap-6">
+        <div className="w-full flex flex-row gap-1.5">
           {/* Donut Chart Container */}
-          <div className="w-2/5 bg-white rounded-2xl border border-gray-200 shadow-sm pt-8 hover:shadow-md transition-all duration-300">
+          <div className="w-2/4 bg-white border border-gray-200 shadow-sm rounded-none flex flex-col">
             {/* Chart Header */}
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-slate-800">
+            <div className="px-3 py-2 bg-blue-900 flex items-center shrink-0">
+              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-white" />
                 Overall Sentiment Distribution by Weightage
               </h3>
             </div>
+            <div className="pt-4 flex-1">
               <SentimentDonutChart 
                 data={weightedSocketData?.weightedPercentages || commentsWeightage?.weightedPercentages || { positive: 0, negative: 0, neutral: 0 }} 
               />
+            </div>
           </div>
 
-          <div className="w-3/5 bg-white rounded-2xl border border-gray-200 shadow-sm pt-8 hover:shadow-md transition-all duration-300">
-              <h3 className="text-xl px-8 font-semibold text-slate-800">
-                Overall Sentiment Distribution by Category
+          {/* Donut Chart Container */}
+          <div className="w-2/4 bg-white border border-gray-200 shadow-sm rounded-none flex flex-col">
+            {/* Chart Header */}
+            <div className="px-3 py-2 bg-blue-900 flex items-center shrink-0">
+              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-white"/>
+                Overall Sentiment Distribution by Weightage
               </h3>
-            <SentimentWeightageChart data={[
-              { category: 'Users', positive: 45, negative: 25, neutral: 30 },
-            ]} />
+            </div>
+            <div className="pt-4 flex-1">
+              <SentimentDonutChart 
+                data={weightedSocketData?.weightedPercentages || commentsWeightage?.weightedPercentages || { positive: 0, negative: 0, neutral: 0 }} 
+              />
+            </div>
           </div>
         </div>
+
+        <div className="w-full mt-2 bg-white border border-gray-200 shadow-sm rounded-none flex flex-col">
+            {/* Chart Header */}
+            <div className="px-3 py-2 bg-blue-900 flex items-center shrink-0">
+              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                <ChartColumnBig className="w-5 h-5 text-white"/>
+                Overall Sentiment Distribution by Category
+              </h3>
+            </div>
+            <div className="pt-1 flex-1">
+              <SentimentWeightageChart data={[
+              { category: 'Users', positive: 45, negative: 25, neutral: 30 },
+            ]} />
+            </div>
+          </div>
+          <div className='mt-2'>
+            <FeaturedComment />
+          </div>
     </div>
   );
 };
