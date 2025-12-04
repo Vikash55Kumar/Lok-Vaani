@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ClipboardMinus } from "lucide-react";
 
 // --- TYPE DEFINITIONS ---
 type SummaryData = {
@@ -116,16 +117,15 @@ interface TabButtonProps {
 }
 
 const TabButton: React.FC<TabButtonProps> = ({ category, isActive, onClick }) => {
-  const activeClasses = 'border-blue-600 text-blue-700 bg-blue-50';
-  const inactiveClasses = 'border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-200';
+  const activeClasses = 'border-l-blue-600 text-blue-700 bg-white shadow-sm';
+  const inactiveClasses = 'border-l-transparent text-gray-500 hover:text-blue-600 hover:bg-gray-100';
   
   return (
     <button
       onClick={() => onClick(category)}
-      className={`whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-t-md
+      className={`w-full text-left py-3 px-4 border-l-4 border-b border-b-gray-100 font-medium text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset
         ${isActive ? activeClasses : inactiveClasses}
       `}
-      style={{ minWidth: '140px' }}
       aria-current={isActive ? 'page' : undefined}
     >
       {category}
@@ -172,13 +172,18 @@ const SummariesByCategory: React.FC = () => {
   );
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 w-full max-w-7xl mx-auto font-sans text-gray-900">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">AI-Generated Summaries by Category</h2>
-
-      {/* Tab Navigation - with a fade effect to indicate scrollability */}
-      <div className="relative border-b border-gray-200 mb-4">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-gray-100">
-            <nav className="pb-[2px] flex space-x-4 min-w-max" aria-label="Tabs">
+    <div className="bg-white border border-gray-200 shadow-sm rounded-none w-full font-sans text-gray-900 overflow-hidden flex flex-col h-[600px]">
+      <div className="px-4 py-3 bg-blue-900 flex items-center justify-between shrink-0">
+        <h3 className="text-base font-medium text-white flex items-center gap-2">
+          <ClipboardMinus className="w-5 h-5 text-white" />
+          AI-Generated Summaries by Category
+        </h3>
+      </div>
+      
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar - Categories */}
+        <div className="w-1/4 min-w-[200px] bg-gray-50 border-r border-gray-200 overflow-y-auto">
+            <nav className="flex flex-col" aria-label="Tabs">
             {summaries.map((summary) => (
                 <TabButton
                 key={summary.id}
@@ -189,47 +194,48 @@ const SummariesByCategory: React.FC = () => {
             ))}
             </nav>
         </div>
-        <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white pointer-events-none"></div>
-      </div>
 
+        {/* Right Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+            <div className="flex-1 p-6 overflow-y-auto relative">
+                {isLoading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-10">
+                    <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="mt-4 text-gray-700">Generating new summary...</p>
+                </div>
+                ) : (
+                <div>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">{activeSummaryData?.category}</h4>
+                    <p className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
+                    {activeSummaryData?.summaryText || 'No summary available.'}
+                    </p>
+                </div>
+                )}
+            </div>
 
-      {/* Summary Content Area */}
-      <div className="relative min-h-[150px]">
-        {isLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 rounded-md z-10">
-            <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="mt-4 text-gray-700">Generating new summary, this may take a moment...</p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-gray-700 leading-relaxed">
-              {activeSummaryData?.summaryText || 'No summary available.'}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-gray-200 mt-4 pt-4 flex items-center justify-between text-sm text-gray-500">
-        <div>
-          <span>Last updated: {activeSummaryData?.lastUpdated}</span>
-          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${activeSummaryData?.updateType === 'Weekly' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'}`}>
-            {activeSummaryData?.updateType}
-          </span>
+            {/* Footer */}
+            <div className="border-t border-gray-200 p-4 bg-gray-50 flex items-center justify-between text-sm text-gray-500 shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span>Last updated: {activeSummaryData?.lastUpdated}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold w-fit ${activeSummaryData?.updateType === 'Weekly' ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {activeSummaryData?.updateType}
+                </span>
+                </div>
+                <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="flex items-center space-x-2 px-4 py-2 bg-white hover:bg-blue-50 text-blue-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-200 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                <svg className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M20 4l-5 5M4 20l5-5" />
+                </svg>
+                <span>Refresh</span>
+                </button>
+            </div>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          <svg className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M20 4l-5 5M4 20l5-5" />
-          </svg>
-          <span>Refresh</span>
-        </button>
       </div>
     </div>
   );

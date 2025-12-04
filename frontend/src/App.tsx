@@ -28,6 +28,8 @@ import { getPostsAsync } from './store/slices/postSlice';
 import CommentAnalysis from './pages/dashboard/commentDashboard/CommentAnalysis';
 import { socketUrl } from './utils/baseApi';
 
+import OverallSummary from './pages/dashboard/commentDashboard/OverallSummary';
+
 function App() {
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector(state => state.auth);
@@ -91,6 +93,7 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/drafts/comment-analysis/:draftId" element={isAuthenticated ? <CommentAnalysis /> : <Login />} />
             <Route path="/drafts/comments-list" element={isAuthenticated ? <CommentList /> : <Login />} />
+            <Route path="/drafts/overall-summary" element={isAuthenticated ? <OverallSummary /> : <Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />

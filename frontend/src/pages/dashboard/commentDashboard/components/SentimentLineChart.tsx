@@ -1,6 +1,7 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import { LineChart } from '@mui/x-charts/LineChart';
+import { TrendingUp } from 'lucide-react';
 import type { TrendData } from '@/types';
 
 interface SentimentLineChartProps {
@@ -14,110 +15,83 @@ const SentimentLineChart: React.FC<SentimentLineChartProps> = ({ data }) => {
   const negativeData = data.map(item => item.negative);
   const neutralData = data.map(item => item.neutral);
 
-  const margin = { right: 24, left: 0, top: 20, bottom: 40 };
+  const margin = { right: 22, left: 1, top: 0, bottom: 0 };
 
   return (
-    <Box sx={{ 
-      width: '100%', 
-      height: 350,
-      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-      '&:hover': {
-        transform: 'scale(1.02)',
-        filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))',
-      }
-    }}>
-      <LineChart
-        series={[
-          { 
-            data: positiveData, 
-            label: 'Positive',
-            color: '#10b981', // emerald-500
-            curve: 'linear'
-          },
-          { 
-            data: negativeData, 
-            label: 'Negative',
-            color: '#ef4444', // red-500
-            curve: 'linear'
-          },
-          { 
-            data: neutralData, 
-            label: 'Neutral',
-            color: '#f59e0b', // amber-500
-            curve: 'linear'
-          },
-        ]}
-        xAxis={[{ 
-          scaleType: 'point', 
-          data: weeks,
-          tickSize: 6,
-          tickLabelStyle: {
-            fontSize: 12,
-            fill: '#64748b' // slate-500
-          }
-        }]}
-        yAxis={[{ 
-          width: 50,
-          tickLabelStyle: {
-            fontSize: 12,
-            fill: '#64748b' // slate-500
-          },
-          min: 0,
-          max: 80
-        }]}
-        margin={margin}
-        grid={{ horizontal: true, vertical: false }}
-        sx={{
-          '& .MuiLineElement-root': {
-            strokeWidth: 3,
-            strokeDasharray: '0',
-            animation: 'drawLine 2s ease-in-out',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              strokeWidth: 4,
-              filter: 'brightness(1.1)',
-            },
-          },
-          '& .MuiMarkElement-root': {
-            r: 4,
-            strokeWidth: 2,
-            fill: 'white',
-            animation: 'fadeInScale 0.6s ease-out',
-            animationFillMode: 'both',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              r: 6,
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-              transform: 'scale(1.1)',
-            },
-          },
-          '& .MuiChartsLegend-root': {
-            fontSize: '14px',
-            fontWeight: 500,
-          },
-          '@keyframes drawLine': {
-            '0%': {
-              strokeDasharray: '1000',
-              strokeDashoffset: '1000',
-            },
-            '100%': {
-              strokeDasharray: '1000',
-              strokeDashoffset: '0',
-            },
-          },
-          '@keyframes fadeInScale': {
-            '0%': {
-              opacity: 0,
-              transform: 'scale(0)',
-            },
-            '100%': {
-              opacity: 1,
-              transform: 'scale(1)',
-            },
-          },
-        }}
-      />
-    </Box>
+    <div className="w-full bg-white border border-gray-200 shadow-sm rounded-none flex flex-col h-full">
+      <div className="px-3 py-2 bg-blue-900 flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-medium text-white flex items-center gap-1.5">
+          <TrendingUp className="w-3 h-3 text-white" />
+          Sentiment Trends Over Time
+        </h3>
+      </div>
+      
+      <div className="flex-1 flex flex-col">
+        
+        <Box sx={{ 
+          width: '100%', 
+          flex: 1,
+          // minHeight: 265,
+          p: 0.5
+        }}>
+          <LineChart
+            height={295}
+            sx={{
+              '& .MuiAreaElement-root': {
+                fillOpacity: 0.7,
+              },
+            }}
+            series={[
+              { 
+                data: positiveData, 
+                label: 'Positive',
+                color: '#93c5fd', // blue-300
+                curve: 'monotoneX',
+                area: true,
+                showMark: false,
+              },
+              { 
+                data: negativeData, 
+                label: 'Negative',
+                color: '#3b82f6', // blue-500
+                curve: 'monotoneX',
+                area: true,
+                showMark: false,
+              },
+              { 
+                data: neutralData, 
+                label: 'Neutral',
+                color: '#1e40af', // blue-800
+                curve: 'monotoneX',
+                area: true,
+                showMark: false,
+              },
+            ]}
+            xAxis={[{ 
+              scaleType: 'point', 
+              data: weeks,
+              tickSize: 6,
+              tickLabelStyle: {
+                fontSize: 12,
+                fill: '#64748b' // slate-500
+              }
+            }]}
+            yAxis={[{ 
+              width: 30,
+              tickLabelStyle: {
+                fontSize: 12,
+                fill: '#64748b' // slate-500
+              },
+              min: 0,
+              max: 80
+            }]}
+            margin={margin}
+            grid={{ horizontal: true, vertical: true }}
+          />
+        </Box>
+
+      </div>
+    </div>
   );
 };
 
