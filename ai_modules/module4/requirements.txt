@@ -1,0 +1,15 @@
+Flask
+Flask-Cors
+wordcloud
+Pillow
+fastapi
+uvicorn[standard]
+
+nltk
+spacy
+wordcloud
+pillow
+
+pydantic
+python-multipart
+
