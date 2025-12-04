@@ -19,29 +19,43 @@ from dotenv import load_dotenv
 app = Flask(__name__)
 CORS(app)
 
-
 load_dotenv()
-vertex_key_path = os.getenv("VERTEX_AI_KEY")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = vertex_key_path
-PROJECT_ID = "master-scanner-479706-b3"
-vertexai.init(project=PROJECT_ID, location="us-central1")
 
-safety_settings = {
-    HarmCategory.HARM_CATEGORY_UNSPECIFIED: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-}
+API_URL = os.environ.get("API_URL")
+if not API_URL:
+    raise ValueError("API_URL not set in environment variables")
+try:
 
-llm = ChatVertexAI(
-    model="gemini-2.5-flash-lite",
-    temperature=0.2,
-    max_output_tokens=4096,
-    project=PROJECT_ID,
-    safety_settings=safety_settings,
-    max_retries=1
-)
+    PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
+    LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
+
+    VERTEX_AI_CREDENTIALS = os.getenv("VERTEX_AI_CREDENTIALS")
+    if VERTEX_AI_CREDENTIALS:
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = VERTEX_AI_CREDENTIALS
+
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
+
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_UNSPECIFIED: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    }
+
+    llm = ChatVertexAI(
+        model="gemini-2.5-flash-lite",
+        temperature=0.2,
+        max_output_tokens=4096,
+        project=PROJECT_ID,
+        safety_settings=safety_settings,
+        max_retries=1
+    )
+
+except Exception as e:
+    print(f"❌ Failed to initialize Vertex AI: {e}")
+    llm = None
+
 pipeline = llm | StrOutputParser()
 
 embed_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
@@ -447,7 +461,7 @@ def analyze():
         print(f" Draft loaded: {len(draft_text)} characters")
         
         # Fetch comments from API
-        api_url = "https://lok-vaani-1.onrender.com/api/v1/comments/tabular-comment"
+        api_url = API_URL
         print(f"🌐 Fetching comments from: {api_url}")
         
         response = requests.get(api_url, timeout=None)
@@ -504,15 +518,14 @@ def analyze():
             'error': f'Analysis failed: {str(e)}'
         }), 500
 
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
+@app.route('/active', methods=['GET'])
+def active():
     return jsonify({
-        'statusCode': 200,
-        'status': 'healthy',
-        'service': 'Policy Analysis API'
+        'status': 'active',
     })
 
 
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
