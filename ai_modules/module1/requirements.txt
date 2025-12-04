@@ -1,9 +1,10 @@
-# Web framework and API
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 fastapi==0.109.0
 gunicorn==21.2.0
 uvicorn[standard]==0.27.0
 pydantic==2.6.0
-
+torch==2.6.0+cpu
 # Environment and HTTP requests
 python-dotenv==1.0.1
 requests==2.31.0
