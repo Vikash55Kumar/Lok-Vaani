@@ -3,9 +3,14 @@ from flask_cors import CORS
 from wordcloud import WordCloud
 import io, os, base64
 import requests  
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 CORS(app)  
+
+API_URL = os.environ.get('DB_API_URL')
 
 @app.route('/')
 def home():
@@ -53,12 +58,17 @@ def generate_wordcloud():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/active', methods=['GET'])
+def active():
+    return jsonify({"status": "active"})
 
 @app.route('/api/cloud-generate', methods=['GET'])
 def generate_cloud_from_external():
     try:
         
-        res = requests.get("https://lok-vaani-1.onrender.com/api/v1/comments/cloud-comment")
+        res = requests.get(f"{API_URL}/api/v1/comments/cloud-comment")
+        if res.status_code != 200:
+            return jsonify({"error": "Failed to fetch comments from API"}), 500
         res.raise_for_status()
         data_json = res.json()
 
@@ -103,4 +113,5 @@ def generate_cloud_from_external():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
