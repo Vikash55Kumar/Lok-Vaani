@@ -9,3 +9,4 @@ keys/
 # Ignore .env file (both Windows and Linux formats)
 .env
 */.env
+vertex_ai.json

@@ -2,7 +2,7 @@ langchain-text-splitters
 langchain>=0.2.0
 langchain-google-vertexai>=2.0.0
 nest_asyncio
-google-cloud-aiplatform[langchain,reasoningengine]
+google-cloud-aiplatform>=1.38.0
 cloudpickle==3.0.0
 pydantic==2.9.0
 requests
@@ -16,3 +16,4 @@ pillow>=10.1.0
 google-cloud-vision==3.4.5
 flask-cors
 pandas
+gunicorn

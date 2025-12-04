@@ -9,7 +9,7 @@ nltk
 spacy
 wordcloud
 pillow
-
+gunicorn
 pydantic
 python-multipart
 

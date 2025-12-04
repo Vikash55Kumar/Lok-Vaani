@@ -23,4 +23,5 @@ RUN python3 -m pip install --upgrade pip && \
 COPY . .
 
 # 8. Run the application
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 1200 --workers 1"]
+
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--timeout", "1200", "--workers", "1"]
