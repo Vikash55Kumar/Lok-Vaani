@@ -6,7 +6,7 @@ import axios from "axios";
 // 1. Fetch from Model 1 every minute and save 3 comments as RAW
 export const commentFetchScheduler = inngest.createFunction(
   { id: "comment-fetch-scheduler" },
-  { cron: "*/60 * * * *" },
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
     const commentsToGenerate = 3;
     const maxAttemptsPerComment = 3;
@@ -73,6 +73,7 @@ export const commentFetchScheduler = inngest.createFunction(
                   businessCategoryId: stepData.businessCategoryId,
                   stakeholderName: stepData.companyName,
                   rawComment: stepData.comment,
+                  commentType: stepData.commentType,
                   wordCount: stepData.wordCount,
                   status: "RAW"
                 }
@@ -121,7 +122,7 @@ export const commentFetchScheduler = inngest.createFunction(
 // 2. Process RAW comments: send to Model 2, update DB as ANALYZED
 export const processRawComments = inngest.createFunction(
   { id: "process-raw-comments" },
-  { cron: "*/60 * * * *" },
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
     const maxCommentsPerRun = 3;
     let processedCount = 0;
@@ -154,7 +155,9 @@ export const processRawComments = inngest.createFunction(
         analysisResult = await step.run(`call-model2-attempt-${comment.id}-1`, async () => {
           const response = await axios.post(
             `${process.env.MODEL2_API_URL}/analyze`,
-            { comment: comment.rawComment },
+            { comment: comment.rawComment,
+              commentType: comment.commentType,
+             },
             { timeout: 60000 }
           );
           // ✅ FIX: Only return the data payload
