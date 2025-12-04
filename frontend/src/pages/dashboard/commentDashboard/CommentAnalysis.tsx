@@ -13,6 +13,7 @@ import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
 import { CommentSummary, Sidebar } from './components';
 import SentimentLineChart from './components/SentimentLineChart';
 
+
 // Dummy data for alerts
 const dashboardData = {
   alerts: [
