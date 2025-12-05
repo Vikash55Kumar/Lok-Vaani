@@ -43,6 +43,7 @@ const Navbar: React.FC = () => {
     { name: 'Home', href: '/', public: true },
     // { name: 'Drafts', href: '/drafts', public: true },
     { name: 'About', href: '/about', public: true },
+    { name: 'Pricing', href: '/pricing', public: true },
     ...(isAuthenticated ? [
       { name: 'Dashboard', href: user?.role === 'ADMIN' ? '/admin' : '/drafts', public: false },
     ] : [])
@@ -116,7 +117,7 @@ const Navbar: React.FC = () => {
 
                   {/* Dropdown Menu */}
                   {isUserDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50 overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-56 bg-white shadow-lg border border-slate-200 z-50 overflow-hidden">
                       {/* User Info Header */}
                       <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                         <div className="text-sm font-semibold text-slate-900">{user?.name}</div>
