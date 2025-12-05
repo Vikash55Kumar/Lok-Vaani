@@ -17,7 +17,6 @@ import { useChatbot } from '../../../context/ChatbotContext';
 import { cn } from '@/lib/utils';
 
 
-// Dummy data for alerts
 const dashboardData = {
   alerts: [
     {
