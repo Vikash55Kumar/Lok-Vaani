@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import { MessageSquare, FileText, LayoutDashboard, Bell, type LucideIcon } from 'lucide-react';
 import { Tooltip } from '@mui/material';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +75,11 @@ const Sidebar: React.FC = () => {
       name: 'Overall Summary',
       icon: FileText,
       path: `/drafts/overall-summary`
+    },
+    {
+      name: 'Alerts',
+      icon: Bell,
+      path: `/drafts/alerts`
     }
   ], [draftId]);
 

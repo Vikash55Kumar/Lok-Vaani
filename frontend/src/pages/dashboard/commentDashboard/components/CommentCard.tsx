@@ -49,16 +49,21 @@ const CommentCard: React.FC<CommentProps> = ({
 
   // Choose icon and color for sentiment using switch
   let SentimentIcon = ThumbsUp;
+  let iconStyles = "bg-green-100 text-green-600 border-green-200";
+
   switch (sentiment) {
     case 'Negative':
       SentimentIcon = ThumbsDown;
+      iconStyles = "bg-red-100 text-red-600 border-red-200";
       break;
     case 'Neutral':
       SentimentIcon = Minus;
+      iconStyles = "bg-yellow-100 text-yellow-600 border-yellow-200";
       break;
     case 'Positive':
     default:
       SentimentIcon = ThumbsUp;
+      iconStyles = "bg-green-100 text-green-600 border-green-200";
       break;
   }
 
@@ -66,8 +71,8 @@ const CommentCard: React.FC<CommentProps> = ({
     <div className="w-full p-4 hover:bg-gray-50 transition-colors duration-200 group">
       <div className="flex items-start gap-3 w-full">
         {/* Icon */}
-        <div className="mt-0.5 shrink-0 p-1.5 rounded-full bg-gray-50 border border-gray-100">
-          <SentimentIcon className="w-3.5 h-3.5 text-gray-700" />
+        <div className={`mt-0.5 shrink-0 p-1.5 rounded-full border ${iconStyles}`}>
+          <SentimentIcon className="w-3.5 h-3.5" />
         </div>
 
         {/* Main content */}
