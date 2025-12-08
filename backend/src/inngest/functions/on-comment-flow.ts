@@ -247,8 +247,9 @@ export const manualCommentFetch = inngest.createFunction(
 
       const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
       const GCS_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON;
-      
+      // Support both Google Cloud (Secret Manager) and Render (env variable)
+      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON || process.env.VERTEX_AI_JSON;
+
       if (!GCS_BUCKET_NAME) {
         console.error("STORAGE_BUCKET_NAME not configured");
         return null;
@@ -257,15 +258,15 @@ export const manualCommentFetch = inngest.createFunction(
       try {
         // Initialize GCS client with credentials
         const storageOptions: any = {};
-        
-        // Priority 1: Use credentials from Secret Manager (JSON string)
+
+        // Priority 1: Use credentials from env (Render or Secret Manager)
         if (GCS_CREDENTIALS_JSON) {
           try {
             const credentials = JSON.parse(GCS_CREDENTIALS_JSON);
             storageOptions.credentials = credentials;
-            console.log("Using GCS credentials from GOOGLE_CREDENTIALS_JSON (Secret Manager)");
+            console.log("Using GCS credentials from env (GOOGLE_CREDENTIALS_JSON or VERTEX_AI_JSON)");
           } catch (parseError) {
-            console.error("Failed to parse GOOGLE_CREDENTIALS_JSON:", parseError);
+            console.error("Failed to parse GCS credentials JSON:", parseError);
           }
         }
         // Priority 2: Use local key file (for development)
@@ -277,15 +278,15 @@ export const manualCommentFetch = inngest.createFunction(
         else {
           console.log("Using default GCS credentials (Application Default Credentials)");
         }
-        
+
         const storage = new Storage(storageOptions);
         const bucket = storage.bucket(GCS_BUCKET_NAME);
-        
+
         // Generate unique filename
         const timestamp = Date.now();
         const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
         const gcsFileName = `manual-comments/${timestamp}-${sanitizedFileName}`;
-        
+
         // Upload file with public access
         await bucket.upload(filePath, {
           destination: gcsFileName,
@@ -293,7 +294,7 @@ export const manualCommentFetch = inngest.createFunction(
             contentType: fileMimeType,
           },
         });
-        
+
         console.log(`File uploaded to GCS: ${gcsFileName}`);
         return gcsFileName;
       } catch (error: any) {
@@ -306,7 +307,7 @@ export const manualCommentFetch = inngest.createFunction(
     // Step 4: Build document URL from GCS path
     const docUrl = await step.run("build-document-url", async () => {
       const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
-      
+      // ...existing code...
       if (!gcsFilePath || !GCS_BUCKET_NAME) {
         console.error("Cannot build GCS URL - missing bucket name or file path");
         return null;
