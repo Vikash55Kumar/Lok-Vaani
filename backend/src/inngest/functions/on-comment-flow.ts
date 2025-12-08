@@ -8,7 +8,7 @@ export const commentFetchScheduler = inngest.createFunction(
   { id: "comment-fetch-scheduler" },
   { cron: "*/1 * * * *" },
   async ({ step }) => {
-    const commentsToGenerate = 3;
+    const commentsToGenerate = 2;
     const maxAttemptsPerComment = 3;
     
     let successfulComments = 0;
