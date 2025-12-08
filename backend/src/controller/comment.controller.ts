@@ -5,8 +5,10 @@ import ApiResponse from '../utility/ApiResponse';
 import { ApiError } from '../utility/ApiError';
 import { prisma } from '../db/index';
 import { logSecurityEvent } from '../utility/auditLogger';
-import { inngest } from '../inngest/client';
+import { createCompanyInternal } from './company.controller';
 import * as path from 'path';
+import * as fs from 'fs';
+import axios from 'axios';
 
 
 // Get comments by post ID
@@ -542,7 +544,7 @@ const getTopNegativeCommentsNew = asyncHandler(async (req: Request, res: Respons
   }
 });
 
-// manualCommentFetch
+// manualCommentFetch - Direct API without Inngest
 const manualCommentFetchNew = asyncHandler(async (req, res) => {
   let { companyId, businessCategoryId, companyName, comment, commentType, state } = req.body;
   
@@ -561,96 +563,179 @@ const manualCommentFetchNew = asyncHandler(async (req, res) => {
 
   // Set default values if not provided
   if (!companyId) {
-    companyId = null; // Will be created in inngest
     businessCategoryId = USER_CATEGORY_ID;
   }
 
   try {
-    // Send to inngest workflow with file metadata (if file provided)
-    const result = await inngest.send({
-      name: "app/manual.comment",
+    let finalCompanyId = companyId;
+    let finalCompanyName = companyName;
+    let extractedText = comment || "";
+    let docUrl = null;
+
+    // Step 1: Create company if not provided
+    if (!finalCompanyId) {
+      console.log(`Creating company: ${companyName} in category: ${businessCategoryId}`);
+      const newCompany = await createCompanyInternal({
+        name: companyName || "Unknown User",
+        businessCategoryId,
+        uniNumber: `USER_${Date.now()}`,
+        state: state || "Unknown"
+      });
+
+      if (!newCompany) {
+        throw new ApiError(500, "Failed to create company");
+      }
+
+      finalCompanyId = newCompany.id;
+      finalCompanyName = newCompany.name;
+      console.log(`Company created: ${finalCompanyName} (${finalCompanyId})`);
+    }
+
+    // Step 2: Extract text from document if file provided
+    if (file) {
+      console.log(`Extracting text from document: ${file.originalname}`);
+      
+      if (!fs.existsSync(file.path)) {
+        throw new ApiError(400, "Uploaded file not found");
+      }
+
+      // Create FormData and append file
+      const FormData = require('form-data');
+      const formData = new FormData();
+      const fileStream = fs.createReadStream(file.path);
+      formData.append("file", fileStream, file.originalname);
+
+      // Call IMAGE_API for OCR
+      const IMAGE_API_URL = process.env.IMAGE_API_URL || process.env.AI_MODEL_URL;
+      if (!IMAGE_API_URL) {
+        throw new ApiError(500, "IMAGE_API_URL not configured");
+      }
+
+      try {
+        const response = await axios.post(
+          `${IMAGE_API_URL}/uploads`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+            },
+            timeout: 60000
+          }
+        );
+
+        if (!response.data || !response.data.extracted_text) {
+          throw new ApiError(500, "Failed to extract text from document");
+        }
+
+        // Normalize extracted text
+        const rawExtracted = String(response.data.extracted_text || "");
+        extractedText = rawExtracted.replace(/\s+/g, " ").trim();
+
+        if (extractedText.length <= 20) {
+          throw new ApiError(400, "Extracted text too short (< 20 characters)");
+        }
+
+        console.log(`Extracted ${extractedText.length} characters from document`);
+      } catch (error: any) {
+        console.error("Error extracting text:", error.message);
+        throw new ApiError(500, `Text extraction failed: ${error.message}`);
+      }
+
+      // Step 3: Upload file to GCS
+      const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
+      const GCS_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON || process.env.VERTEX_AI_JSON;
+
+      if (GCS_BUCKET_NAME) {
+        try {
+          const { Storage } = require('@google-cloud/storage');
+          const storageOptions: any = {};
+
+          // Use credentials from env (Render or Secret Manager)
+          if (GCS_CREDENTIALS_JSON) {
+            try {
+              const credentials = JSON.parse(GCS_CREDENTIALS_JSON);
+              storageOptions.credentials = credentials;
+              console.log("Using GCS credentials from env");
+            } catch (parseError) {
+              console.error("Failed to parse GCS credentials JSON:", parseError);
+            }
+          }
+          // Use local key file (for development)
+          else if (GCS_KEY_FILE && fs.existsSync(GCS_KEY_FILE)) {
+            storageOptions.keyFilename = GCS_KEY_FILE;
+            console.log(`Using GCS credentials from file: ${GCS_KEY_FILE}`);
+          }
+
+          const storage = new Storage(storageOptions);
+          const bucket = storage.bucket(GCS_BUCKET_NAME);
+
+          // Generate unique filename
+          const timestamp = Date.now();
+          const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const gcsFileName = `manual-comments/${timestamp}-${sanitizedFileName}`;
+
+          // Upload file
+          await bucket.upload(file.path, {
+            destination: gcsFileName,
+            metadata: {
+              contentType: file.mimetype,
+            },
+          });
+
+          docUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${gcsFileName}`;
+          console.log(`File uploaded to GCS: ${docUrl}`);
+        } catch (error: any) {
+          console.error("GCS upload failed:", error.message);
+          // Continue without docUrl
+        }
+      }
+
+      // Step 4: Cleanup local file
+      try {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+          console.log(`Cleaned up local file: ${file.path}`);
+        }
+      } catch (error: any) {
+        console.warn(`Failed to cleanup file:`, error.message);
+      }
+    }
+
+    // Step 5: Save comment to database
+    const newComment = await prisma.comment.create({
       data: {
         postId,
         postTitle,
-        companyId,
+        companyId: finalCompanyId,
         businessCategoryId,
-        companyName: companyName || "Unknown User",
-        comment: comment || "",
+        stakeholderName: finalCompanyName,
+        rawComment: extractedText,
         commentType: commentType || "overall",
-        wordCount: "",
-        state: state || "Unknown",
-        hasFile: !!file,
-        filePath: file?.path || null,
-        fileName: file?.originalname || null,
-        fileMimeType: file?.mimetype || null,
-        fileSize: file?.size || 0
+        wordCount: extractedText.split(/\s+/).length,
+        status: "RAW",
+        docUrl
+      },
+      include: {
+        company: {
+          select: {
+            name: true
+          }
+        }
       }
     });
 
-    if (!result) {
-      throw new ApiError(500, "Failed to submit comment to workflow");
-    }
-
-    // Wait for workflow to complete and save to database (max 60 seconds)
-    let attempts = 0;
-    const maxAttempts = 60; // Increased to 60 seconds to allow for GCS upload
-    let savedComment = null;
-
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-      
-      // Check if comment was saved WITH docUrl (look for most recent comment)
-      savedComment = await prisma.comment.findFirst({
-        where: {
-          postId,
-          createdAt: {
-            gte: new Date(Date.now() - 120000) // Within last 2 minutes
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        select: {
-          id: true,
-          postId: true,
-          companyId: true,
-          docUrl: true,
-          status: true,
-          rawComment: true,
-          company: {
-            select: {
-              name: true
-            }
-          }
-        }
-      });
-
-      // Only break if we have docUrl (meaning workflow completed all steps)
-      if (savedComment && savedComment.docUrl) {
-        console.log(`Found comment with docUrl after ${attempts + 1} attempts`);
-        break;
-      }
-      
-      attempts++;
-    }
-
-    if (!savedComment) {
-      throw new ApiError(500, "Comment processing timeout - check Inngest dashboard");
-    }
-
-    if (!savedComment.docUrl) {
-      console.warn("Comment saved but docUrl is missing - GCS upload may have failed");
-    }
+    console.log(`Comment saved successfully: ${newComment.id}`);
 
     res.status(200).json(new ApiResponse(200, {
-      commentId: savedComment.id,
-      docUrl: savedComment.docUrl,
-      companyId: savedComment.companyId,
-      companyName: savedComment.company?.name,
-      comment: savedComment.rawComment,
-      postId: savedComment.postId,
-      status: savedComment.status,
-      extractedTextLength: savedComment.rawComment?.length || 0
+      commentId: newComment.id,
+      docUrl: newComment.docUrl,
+      companyId: newComment.companyId,
+      companyName: newComment.company?.name,
+      comment: newComment.rawComment,
+      postId: newComment.postId,
+      status: newComment.status,
+      extractedTextLength: newComment.rawComment?.length || 0
     }, "Comment saved successfully"));
   } catch (error: any) {
     console.error("Error submitting comment:", error);
