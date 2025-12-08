@@ -4,7 +4,7 @@ import {
   addPostSummary,
   getLatestSummary,
   getSummaryById
-} from '../controller/postSummary.controller';
+} from '../controller/summary.controller';
 
 const router = Router({ mergeParams: true });
 

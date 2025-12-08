@@ -5,6 +5,9 @@ import ApiResponse from '../utility/ApiResponse';
 import { ApiError } from '../utility/ApiError';
 import { prisma } from '../db/index';
 import { logSecurityEvent } from '../utility/auditLogger';
+import { inngest } from '../inngest/client';
+import * as path from 'path';
+
 
 // Get comments by post ID
 const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => {
@@ -37,6 +40,8 @@ const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => 
         summary: true,
         sentiment: true,
         language: true,
+        commentType: true,
+        docUrl: true,
         keywords: true,
         status: true,
         createdAt: true,
@@ -452,18 +457,345 @@ const getAllComments = asyncHandler(async (req: Request, res: Response) => {
     const comments = await prisma.comment.findMany({
       where: { status: 'ANALYZED' },
       select: {
-        rawComment: true,
+        standardComment: true,
       },
       orderBy: { updatedAt: 'desc' }
     });
 
     // Return only the comment text, not the key
-    const commentList = comments.map(c => c.rawComment);
+    const commentList = comments.map(c => c.standardComment);
 
     res.status(200).json(new ApiResponse(200, commentList, "All comments fetched successfully"));
   } catch (error) {
     console.error("Error fetching all comments:", error);
     throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
+// get top 5 negative comments with highest sentiment scores
+const getTopNegativeComments = asyncHandler(async (req: Request, res: Response) => {
+  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
+  try {
+    // First check what negative comments exist
+    const allNegativeComments = await prisma.comment.findMany({
+      where: {
+        postId,
+        status: 'ANALYZED',
+        sentiment: 'Negative'
+      },
+      select: {
+        id: true,
+        sentiment: true,
+        sentimentScore: true,
+        rawComment: true
+      }
+    });
+
+    console.log('Total negative comments found:', allNegativeComments.length);
+    console.log('Sample sentimentScores:', allNegativeComments.slice(0, 3).map(c => c.sentimentScore));
+
+    // Get top 5 negative comments - if sentimentScore exists use it, otherwise sort by createdAt
+    const topNegativeComments = await prisma.comment.findMany({
+      where: {
+        postId,
+        status: 'ANALYZED',
+        sentiment: 'Negative'
+      },
+      orderBy: [
+        { sentimentScore: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      take: 5,
+      select: {
+        id: true,
+        rawComment: true,
+        summary: true,
+        sentiment: true,
+        sentimentScore: true,
+        keywords: true,
+        commentType: true,
+        createdAt: true,
+        company: {
+          select: {
+            name: true,
+            state: true,
+            businessCategory: {
+              select: {
+                name: true,
+                categoryType: true,
+                weightageScore: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+      count: topNegativeComments.length,
+      totalNegative: allNegativeComments.length,
+      comments: topNegativeComments
+    }, "Top negative comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching top negative comments:", error);
+    throw new ApiError(500, "Failed to fetch top negative comments");
+  }
+});
+
+// manualCommentFetch
+const manualCommentFetch = asyncHandler(async (req, res) => {
+  let { companyId, businessCategoryId, companyName, comment, commentType, state } = req.body;
+  
+  // User category ID (citizens/general users)
+  const USER_CATEGORY_ID = "801e4fc0-9ea9-4980-811a-bb799c6da05e";
+  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
+  const postTitle = "Invitation for public comments on establishment of Indian Multi-Disciplinary Partnership (MDP) firms.";
+
+  // Extract uploaded file (optional)
+  const file = (req.files && (req.files as any)["file"] && (req.files as any)["file"][0]) || null;
+
+  // Validate: Either file OR comment text is required
+  if (!file && !comment) {
+    throw new ApiError(400, "Either file upload or comment text is required");
+  }
+
+  // Set default values if not provided
+  if (!companyId) {
+    companyId = null; // Will be created in inngest
+    businessCategoryId = USER_CATEGORY_ID;
+  }
+
+  try {
+    // Send to inngest workflow with file metadata (if file provided)
+    const result = await inngest.send({
+      name: "app/manual.comment",
+      data: {
+        postId,
+        postTitle,
+        companyId,
+        businessCategoryId,
+        companyName: companyName || "Unknown User",
+        comment: comment || "",
+        commentType: commentType || "overall",
+        wordCount: "",
+        state: state || "Unknown",
+        hasFile: !!file,
+        filePath: file?.path || null,
+        fileName: file?.originalname || null,
+        fileMimeType: file?.mimetype || null,
+        fileSize: file?.size || 0
+      }
+    });
+
+    if (!result) {
+      throw new ApiError(500, "Failed to submit comment to workflow");
+    }
+
+    // Wait for workflow to complete and save to database (max 60 seconds)
+    let attempts = 0;
+    const maxAttempts = 60; // Increased to 60 seconds to allow for GCS upload
+    let savedComment = null;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      
+      // Check if comment was saved WITH docUrl (look for most recent comment)
+      savedComment = await prisma.comment.findFirst({
+        where: {
+          postId,
+          createdAt: {
+            gte: new Date(Date.now() - 120000) // Within last 2 minutes
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          postId: true,
+          companyId: true,
+          docUrl: true,
+          status: true,
+          rawComment: true,
+          company: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Only break if we have docUrl (meaning workflow completed all steps)
+      if (savedComment && savedComment.docUrl) {
+        console.log(`Found comment with docUrl after ${attempts + 1} attempts`);
+        break;
+      }
+      
+      attempts++;
+    }
+
+    if (!savedComment) {
+      throw new ApiError(500, "Comment processing timeout - check Inngest dashboard");
+    }
+
+    if (!savedComment.docUrl) {
+      console.warn("Comment saved but docUrl is missing - GCS upload may have failed");
+    }
+
+    res.status(200).json(new ApiResponse(200, {
+      commentId: savedComment.id,
+      docUrl: savedComment.docUrl,
+      companyId: savedComment.companyId,
+      companyName: savedComment.company?.name,
+      comment: savedComment.rawComment,
+      postId: savedComment.postId,
+      status: savedComment.status,
+      extractedTextLength: savedComment.rawComment?.length || 0
+    }, "Comment saved successfully"));
+  } catch (error: any) {
+    console.error("Error submitting comment:", error);
+    throw new ApiError(500, `Failed to submit comment: ${error.message}`);
+  }
+});
+
+// Get clause-wise sentiment analysis
+const getClauseWiseSentiment = asyncHandler(async (req: Request, res: Response) => {
+  const postId= "a90315d4-b2b1-4836-a848-b47e318a5fa5"
+
+  try {
+    // Get all analyzed comments with their comment types (which represent clauses)
+    const comments = await prisma.comment.findMany({
+      where: { 
+        postId, 
+        status: 'ANALYZED',
+        commentType: { not: null }
+      },
+      select: {
+        commentType: true,
+        sentiment: true,
+      }
+    });
+
+    if (comments.length === 0) {
+      return res.status(200).json(new ApiResponse(200, {
+        clauses: [],
+        message: "No analyzed comments found"
+      }, "No analyzed comments found for this post"));
+    }
+
+    // Group comments by clause (commentType) and count sentiments
+    const clauseMap = new Map<string, { positive: number; negative: number; neutral: number; total: number }>();
+
+    comments.forEach(comment => {
+      const clause = comment.commentType || 'overall';
+      
+      if (!clauseMap.has(clause)) {
+        clauseMap.set(clause, { positive: 0, negative: 0, neutral: 0, total: 0 });
+      }
+
+      const clauseData = clauseMap.get(clause)!;
+      clauseData.total++;
+
+      switch (comment.sentiment?.toLowerCase()) {
+        case 'positive':
+          clauseData.positive++;
+          break;
+        case 'negative':
+          clauseData.negative++;
+          break;
+        case 'neutral':
+          clauseData.neutral++;
+          break;
+      }
+    });
+
+    // Convert map to array format
+    const clausesAnalysis = Array.from(clauseMap.entries()).map(([clause, data]) => ({
+      clause,
+      positive: data.positive,
+      negative: data.negative,
+      neutral: data.neutral,
+      total: data.total,
+      positivePercentage: Math.round((data.positive / data.total) * 100 * 100) / 100,
+      negativePercentage: Math.round((data.negative / data.total) * 100 * 100) / 100,
+      neutralPercentage: Math.round((data.neutral / data.total) * 100 * 100) / 100
+    }));
+
+    // Sort by total comments (most discussed clauses first)
+    clausesAnalysis.sort((a, b) => b.total - a.total);
+
+    res.status(200).json(new ApiResponse(200, {
+      postId,
+      totalAnalyzedComments: comments.length,
+      clauses: clausesAnalysis
+    }, "Clause-wise sentiment analysis fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching clause-wise sentiment:", error);
+    throw new ApiError(500, "Failed to fetch clause-wise sentiment analysis");
+  }
+});
+
+// Delete all comments except those from December 8, 2025
+const deleteCommentsExceptDate = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { keepCount, deleteAll } = req.query;
+    
+    // First, get all comments ordered by creation time
+    const allComments = await prisma.comment.findMany({
+      select: {
+        id: true,
+        createdAt: true,
+        stakeholderName: true,
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    console.log('Total comments:', allComments.length);
+    console.log('Oldest comment:', allComments[0]?.createdAt);
+    console.log('Newest comment:', allComments[allComments.length - 1]?.createdAt);
+
+    let deletedComments;
+    let message = '';
+
+    if (deleteAll === 'true') {
+      // Delete ALL comments
+      deletedComments = await prisma.comment.deleteMany({});
+      message = `Deleted all ${deletedComments.count} comments from database`;
+    } else if (keepCount) {
+      // Keep only the oldest N comments (from pull request)
+      const keepNumber = parseInt(keepCount as string);
+      const commentsToKeep = allComments.slice(0, keepNumber);
+      const keepIds = commentsToKeep.map(c => c.id);
+      
+      deletedComments = await prisma.comment.deleteMany({
+        where: {
+          id: { notIn: keepIds }
+        }
+      });
+      message = `Kept oldest ${keepNumber} comments, deleted ${deletedComments.count} newer comments`;
+    } else {
+      // Default: Delete comments from last 2 hours
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      
+      deletedComments = await prisma.comment.deleteMany({
+        where: {
+          createdAt: { gte: twoHoursAgo }
+        }
+      });
+      message = `Deleted ${deletedComments.count} comments from last 2 hours`;
+    }
+
+    res.status(200).json(new ApiResponse(200, {
+      deletedCount: deletedComments.count,
+      totalBefore: allComments.length,
+      remaining: allComments.length - deletedComments.count,
+      message
+    }, message));
+  } catch (error: any) {
+    console.error("Error deleting comments:", error);
+    throw new ApiError(500, `Failed to delete comments: ${error.message}`);
   }
 });
 
@@ -477,5 +809,9 @@ export {
   verifyCompanyComment,
   getAllCommentsWithSentiment,
   getAllCommentsWithSentimentCSV,
-  getAllComments
+  getAllComments,
+  manualCommentFetch,
+  deleteCommentsExceptDate,
+  getClauseWiseSentiment,
+  getTopNegativeComments
 };

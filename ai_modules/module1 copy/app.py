@@ -26,12 +26,11 @@ LLM_MODE = os.getenv("LLM_MODE")
 MODEL_NAME = os.getenv("LOCAL_MODEL_NAME",)
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "150"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
-DEVICE = os.getenv("DEVICE", "cpu").lower()
 
 print(f"🚀 Initializing LokVaani AI Generator")
 print(f"   - Mode: {LLM_MODE}")
 print(f"   - Model: {MODEL_NAME}")
-print(f"   - Device: {DEVICE}")
+print(f"   - Device: CPU")
 
 try:
     PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -166,14 +165,13 @@ class SimpleCommentGenerator:
     def _load_llm(self):
         """Load LLM pipeline for CPU-only deployment"""
         try:
-            device_id = 0 if DEVICE == "gpu" else -1
-            print(f"⏳ Loading LLM pipeline for {DEVICE.upper()}...", "device_id:", device_id)
-
+            print(f"⏳ Loading LLM pipeline for CPU...")
+            
             # Force CPU-only configuration
             self.llm_pipeline = hf_pipeline(
                 "text-generation",
                 model=MODEL_NAME,
-                device=device_id,  # CPU or GPU based on DEVICE
+                device=-1,  # CPU only
                 model_kwargs={"cache_dir": "./model_cache"}
             )
             print("✅ LLM loaded successfully.")
@@ -736,7 +734,7 @@ def status():
         "status": "active", 
         "model": MODEL_NAME, 
         "mode": LLM_MODE,
-        "device": DEVICE,
+        "device": "cpu",
         "gemini_available": bool(llm),
         "gemini_project": PROJECT_ID if llm else None
     }
@@ -760,7 +758,7 @@ async def get_config():
         "local_model": MODEL_NAME,
         "llm_loaded": bool(generator.llm_pipeline),
         "gemini_loaded": bool(llm),
-        "device": DEVICE,
+        "device": "cpu",
         "categories_loaded": len(generator.categories),
         "posts_loaded": len(generator.posts),
         "companies_loaded": len(generator.companies),
