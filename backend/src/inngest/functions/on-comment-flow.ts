@@ -214,11 +214,11 @@ export const processRawComments = inngest.createFunction(
             where: { id: comment.id },
             data: {
               // Note: analysisResult IS the data now, so we don't need .data.translated
-              standardComment: analysisResult.translated,
-              language: analysisResult.language_type,
+              standardComment: analysisResult.analyzed_text,
+              language: analysisResult.detected_language,
               sentiment: analysisResult.sentiment,
               sentimentScore: analysisResult.sentimentScore,
-              summary: analysisResult.summary,
+              summary: analysisResult.ai_summary,
               status: "ANALYZED",
               processedAt: new Date(),
               processingError: null
