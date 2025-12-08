@@ -1,0 +1,46 @@
+# Git
+.git/
+.gitignore
+
+# Node
+node_modules/
+npm-debug.log
+
+# Environment
+.env
+.env.*
+
+# Source files (compiled to dist/)
+src/
+
+# TypeScript config
+tsconfig.json
+tsconfig.build.json
+nodemon.json
+
+# Tests
+**/*.test.ts
+**/*.spec.ts
+
+# Documentation
+*.md
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Temporary
+tmp/
+temp/
+public/temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend build artifacts
+../../frontend/
