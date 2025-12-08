@@ -735,6 +735,28 @@ const getClauseWiseSentimentNew = asyncHandler(async (req: Request, res: Respons
   }
 });
 
+// Get all Hindi comments
+const getAllHindiComments = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { 
+        status: 'ANALYZED',
+        language: 'Hindi' // Filter for Hindi comments
+      },
+      select: {
+        rawComment: true,
+      }
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+      totalHindiComments: comments.length,
+      comments
+    }, "Hindi comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching Hindi comments:", error);
+    throw new ApiError(500, "Failed to fetch Hindi comments");
+  }
+});
 
 export {
   getCommentsByPostId,
@@ -749,5 +771,6 @@ export {
   getAllComments,
   manualCommentFetchNew,
   getClauseWiseSentimentNew,
-  getTopNegativeCommentsNew
+  getTopNegativeCommentsNew,
+  getAllHindiComments
 };
