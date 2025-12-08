@@ -474,7 +474,12 @@ const getAllComments = asyncHandler(async (req: Request, res: Response) => {
 
 // get top 5 negative comments with highest sentiment scores
 const getTopNegativeComments = asyncHandler(async (req: Request, res: Response) => {
-  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
+  const { postId } = req.params;
+
+  if (!postId) {
+    throw new ApiError(400, "Post ID is required");
+  }
+
   try {
     // First check what negative comments exist
     const allNegativeComments = await prisma.comment.findMany({
@@ -660,7 +665,11 @@ const manualCommentFetch = asyncHandler(async (req, res) => {
 
 // Get clause-wise sentiment analysis
 const getClauseWiseSentiment = asyncHandler(async (req: Request, res: Response) => {
-  const postId= "a90315d4-b2b1-4836-a848-b47e318a5fa5"
+  const { postId } = req.params;
+
+  if (!postId) {
+    throw new ApiError(400, "Post ID is required");
+  }
 
   try {
     // Get all analyzed comments with their comment types (which represent clauses)
