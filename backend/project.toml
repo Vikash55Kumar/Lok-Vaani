@@ -1,0 +1,16 @@
+{
+  "builder": "gcr.io/buildpacks/builder:v1",
+  "buildpacks": [
+    {
+      "id": "google.nodejs.runtime"
+    },
+    {
+      "id": "google.nodejs.npm"
+    }
+  ],
+  "env": {
+    "GOOGLE_RUNTIME_VERSION": "20",
+    "GOOGLE_BUILDABLE": ".",
+    "NODE_ENV": "production"
+  }
+}
