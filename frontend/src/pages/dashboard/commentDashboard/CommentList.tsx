@@ -6,6 +6,9 @@ import { useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../../hooks/redux';
 import { useCommentSocketUpdates } from '../../../hooks/useCommentSocketUpdates';
 import { type Comment } from '../../../services/commentService';
+import AIAgentChatbot from '../AIAgentChatbot';
+import { useChatbot } from '../../../context/ChatbotContext';
+import { cn } from '@/lib/utils';
 
 // Define the type for a comment object (should match CommentCard props)
 export type CommentType = {
@@ -38,6 +41,7 @@ interface CommentListProps {
 }
 
 const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => {
+  const { isOpen } = useChatbot();
   // Use props first, then fallback to navigation state, then Redux state
   const location = useLocation();
   const { comments: reduxComments, commentCounts } = useAppSelector(state => state.comment);
@@ -144,15 +148,15 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
   }), [allComments, language, sentiment, category, businessCategory, search, dateFrom, dateTo]);
 
   return (
-    <div className="bg-white font-sans relative min-h-screen">
+    <div className={`bg-white font-sans relative min-h-screen transition-all duration-300 ${isOpen ? 'w-1/2' : 'w-full'}`}>
       <Sidebar />
       <div className="py-4 ml-14">
         <div className="w-full px-2">
           <div className="min-h-screen bg-white">
             <div className="w-full px-4 py-2">
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className={cn("flex flex-col gap-6", !isOpen && "lg:flex-row")}>
         {/* Left Column: Filters */}
-        <div className="w-full lg:w-80 flex-shrink-0">
+        <div className={cn("w-full flex-shrink-0", !isOpen && "lg:w-80")}>
           <div className="bg-white border border-gray-200 shadow-sm sticky top-3 overflow-hidden">
             <div className="px-4 py-3 bg-blue-900 flex items-center gap-2">
               <Filter className="text-white" size={18} />
@@ -348,10 +352,10 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
       </div>
       </div>
     </div>
-          </div>
-        </div>
-      </div>
-    
+    </div>
+    </div>
+      <AIAgentChatbot />
+    </div>
   );
 };
 
