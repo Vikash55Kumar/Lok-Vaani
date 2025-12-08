@@ -433,7 +433,7 @@ const getAllCommentsWithSentiment = asyncHandler(async (req: Request, res: Respo
     const comments = await prisma.comment.findMany({
       where: { status: 'ANALYZED' },
       select: {
-        rawComment: true,
+        standardComment: true,
         sentiment: true,
       },
       orderBy: { updatedAt: 'desc' }
