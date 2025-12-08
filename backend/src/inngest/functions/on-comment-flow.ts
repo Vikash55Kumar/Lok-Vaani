@@ -247,6 +247,7 @@ export const manualCommentFetch = inngest.createFunction(
 
       const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
       const GCS_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON;
       
       if (!GCS_BUCKET_NAME) {
         console.error("STORAGE_BUCKET_NAME not configured");
@@ -256,10 +257,24 @@ export const manualCommentFetch = inngest.createFunction(
       try {
         // Initialize GCS client with credentials
         const storageOptions: any = {};
-        if (GCS_KEY_FILE && fs.existsSync(GCS_KEY_FILE)) {
+        
+        // Priority 1: Use credentials from Secret Manager (JSON string)
+        if (GCS_CREDENTIALS_JSON) {
+          try {
+            const credentials = JSON.parse(GCS_CREDENTIALS_JSON);
+            storageOptions.credentials = credentials;
+            console.log("Using GCS credentials from GOOGLE_CREDENTIALS_JSON (Secret Manager)");
+          } catch (parseError) {
+            console.error("Failed to parse GOOGLE_CREDENTIALS_JSON:", parseError);
+          }
+        }
+        // Priority 2: Use local key file (for development)
+        else if (GCS_KEY_FILE && fs.existsSync(GCS_KEY_FILE)) {
           storageOptions.keyFilename = GCS_KEY_FILE;
-          console.log(`Using GCS credentials from: ${GCS_KEY_FILE}`);
-        } else {
+          console.log(`Using GCS credentials from file: ${GCS_KEY_FILE}`);
+        }
+        // Priority 3: Use Application Default Credentials
+        else {
           console.log("Using default GCS credentials (Application Default Credentials)");
         }
         
