@@ -56,11 +56,11 @@ const createCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
 // Get all companies
 const getAllCompanies = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
-    const role = req.user?.role;
+    // const role = req.user?.role;
 
-    if(role !== 'ADMIN' ) {
-        throw new ApiError(403, "Forbidden: Admins only");
-    }
+    // if(role !== 'ADMIN' ) {
+    //     throw new ApiError(403, "Forbidden: Admins only");
+    // }
 
     const companies = await prisma.company.findMany({
       orderBy: { createdAt: 'desc' }
