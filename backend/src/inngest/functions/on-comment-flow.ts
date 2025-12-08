@@ -12,7 +12,7 @@ import { Storage } from "@google-cloud/storage";
 // 1. Fetch from Model 1 every minute and save 3 comments as RAW
 export const commentFetchScheduler = inngest.createFunction(
   { id: "comment-fetch-scheduler" },
-  { cron: "*/60 * * * *" },
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
     const commentsToGenerate = 3;
     const maxAttemptsPerComment = 3;
@@ -370,7 +370,7 @@ export const manualCommentFetch = inngest.createFunction(
 // 2. Process RAW comments: send to Model 2, update DB as ANALYZED
 export const processRawComments = inngest.createFunction(
   { id: "process-raw-comments" },
-  { cron: "*/60 * * * *" },
+  { cron: "*/1 * * * *" },
   async ({ step }) => {
     const maxCommentsPerRun = 3;
     let processedCount = 0;
