@@ -34,10 +34,10 @@ def generate_wordcloud():
         
         wordcloud = WordCloud(
             width=1200,
-            height=400,
+            height=1000,
             background_color='white',
             colormap='inferno',
-            max_words=100,
+            max_words=200,
             relative_scaling=0.5,
             min_font_size=10
         ).generate(text)

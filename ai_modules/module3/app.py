@@ -3,7 +3,7 @@ import vertexai
 from google.oauth2 import service_account
 from flask import Flask, jsonify, request
 from flask_cors import CORS
- 
+import nest_asyncio
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
@@ -20,6 +20,7 @@ app = Flask(__name__)
 CORS(app)
 
 load_dotenv()
+nest_asyncio.apply()
 
 API_URL = os.environ.get("API_URL")
 if not API_URL:
@@ -490,8 +491,11 @@ def analyze():
         print(f" Fetched {len(comments)} comments")
         
        
-        summary = asyncio.run(analyze_comments_async(comments, sentiments, draft_text))
+        # summary = asyncio.run(analyze_comments_async(comments, sentiments, draft_text))
         
+        loop = asyncio.get_event_loop()
+        summary = loop.run_until_complete(analyze_comments_async(comments, sentiments, draft_text))
+
         elapsed = time.time() - start_time
         print(f" Total time: {elapsed:.2f}s ({elapsed/60:.2f} min)")
         

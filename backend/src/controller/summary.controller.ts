@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../utility/asyncHandler';
 import ApiResponse from '../utility/ApiResponse';
 import { ApiError } from '../utility/ApiError';
+import { inngest } from '../inngest/client';
 
 // Get timeline summaries for a post
 export const getPostSummaries = asyncHandler(async (req: Request, res: Response) => {
@@ -26,3 +27,28 @@ export const getSummaryById = asyncHandler(async (req: Request, res: Response) =
   // TODO: Implement get summary by ID logic
   res.status(200).json(new ApiResponse(200, {}, "Summary fetched successfully"));
 });
+
+// Generate word cloud 
+const generateWordCloud = asyncHandler(async (req, res) => {
+  // const { postId } = req.body;
+  // if (!postId) {
+  //   return res.status(400).json(new ApiResponse(400, null, "postId is required"));
+  // }
+
+  // Trigger inngest event and wait for result
+  const result = await inngest.send({
+    name: "app/generate.wordcloud",
+    // data: { postId }
+  });
+
+  if (!result) {
+    throw new ApiError(500, "Failed to generate word cloud");
+  }
+
+  res.status(200).json(new ApiResponse(200, result, "Word cloud generated"));
+});
+
+
+export { 
+  generateWordCloud
+};
