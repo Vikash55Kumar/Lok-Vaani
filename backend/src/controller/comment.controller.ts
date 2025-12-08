@@ -473,13 +473,8 @@ const getAllComments = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // get top 5 negative comments with highest sentiment scores
-const getTopNegativeComments = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
-
-  if (!postId) {
-    throw new ApiError(400, "Post ID is required");
-  }
-
+const getTopNegativeCommentsNew = asyncHandler(async (req: Request, res: Response) => {
+  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
   try {
     // First check what negative comments exist
     const allNegativeComments = await prisma.comment.findMany({
@@ -548,7 +543,7 @@ const getTopNegativeComments = asyncHandler(async (req: Request, res: Response) 
 });
 
 // manualCommentFetch
-const manualCommentFetch = asyncHandler(async (req, res) => {
+const manualCommentFetchNew = asyncHandler(async (req, res) => {
   let { companyId, businessCategoryId, companyName, comment, commentType, state } = req.body;
   
   // User category ID (citizens/general users)
@@ -664,12 +659,8 @@ const manualCommentFetch = asyncHandler(async (req, res) => {
 });
 
 // Get clause-wise sentiment analysis
-const getClauseWiseSentiment = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
-
-  if (!postId) {
-    throw new ApiError(400, "Post ID is required");
-  }
+const getClauseWiseSentimentNew = asyncHandler(async (req: Request, res: Response) => {
+  const postId= "a90315d4-b2b1-4836-a848-b47e318a5fa5"
 
   try {
     // Get all analyzed comments with their comment types (which represent clauses)
@@ -744,69 +735,6 @@ const getClauseWiseSentiment = asyncHandler(async (req: Request, res: Response) 
   }
 });
 
-// Delete all comments except those from December 8, 2025
-const deleteCommentsExceptDate = asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { keepCount, deleteAll } = req.query;
-    
-    // First, get all comments ordered by creation time
-    const allComments = await prisma.comment.findMany({
-      select: {
-        id: true,
-        createdAt: true,
-        stakeholderName: true,
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    });
-
-    console.log('Total comments:', allComments.length);
-    console.log('Oldest comment:', allComments[0]?.createdAt);
-    console.log('Newest comment:', allComments[allComments.length - 1]?.createdAt);
-
-    let deletedComments;
-    let message = '';
-
-    if (deleteAll === 'true') {
-      // Delete ALL comments
-      deletedComments = await prisma.comment.deleteMany({});
-      message = `Deleted all ${deletedComments.count} comments from database`;
-    } else if (keepCount) {
-      // Keep only the oldest N comments (from pull request)
-      const keepNumber = parseInt(keepCount as string);
-      const commentsToKeep = allComments.slice(0, keepNumber);
-      const keepIds = commentsToKeep.map(c => c.id);
-      
-      deletedComments = await prisma.comment.deleteMany({
-        where: {
-          id: { notIn: keepIds }
-        }
-      });
-      message = `Kept oldest ${keepNumber} comments, deleted ${deletedComments.count} newer comments`;
-    } else {
-      // Default: Delete comments from last 2 hours
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      
-      deletedComments = await prisma.comment.deleteMany({
-        where: {
-          createdAt: { gte: twoHoursAgo }
-        }
-      });
-      message = `Deleted ${deletedComments.count} comments from last 2 hours`;
-    }
-
-    res.status(200).json(new ApiResponse(200, {
-      deletedCount: deletedComments.count,
-      totalBefore: allComments.length,
-      remaining: allComments.length - deletedComments.count,
-      message
-    }, message));
-  } catch (error: any) {
-    console.error("Error deleting comments:", error);
-    throw new ApiError(500, `Failed to delete comments: ${error.message}`);
-  }
-});
 
 export {
   getCommentsByPostId,
@@ -819,8 +747,7 @@ export {
   getAllCommentsWithSentiment,
   getAllCommentsWithSentimentCSV,
   getAllComments,
-  manualCommentFetch,
-  deleteCommentsExceptDate,
-  getClauseWiseSentiment,
-  getTopNegativeComments
+  manualCommentFetchNew,
+  getClauseWiseSentimentNew,
+  getTopNegativeCommentsNew
 };
