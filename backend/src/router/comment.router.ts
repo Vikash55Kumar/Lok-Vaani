@@ -11,7 +11,8 @@ import {
   getAllComments,
   getClauseWiseSentimentNew,
   getTopNegativeCommentsNew,
-  manualCommentFetchNew
+  manualCommentFetchNew,
+  getAllHindiComments
 } from '../controller/comment.controller';
 import { upload } from '../middleware/multer';
 
@@ -36,5 +37,6 @@ router.get('/tabular-comment', getAllCommentsWithSentiment);
 router.get('/cloud-comment', getAllComments);
 router.get('/clause-wise-sentiment', getClauseWiseSentimentNew);
 router.get('/top-negative-comments', getTopNegativeCommentsNew);
+router.get('/hindi-comment', getAllHindiComments);
 router.route("/manual-comment").post(upload.fields([{ name: "file", maxCount: 1 }]), manualCommentFetchNew);
 export default router;
