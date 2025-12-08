@@ -7,13 +7,16 @@ import './index.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { store } from './store/index.ts';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { ChatbotProvider } from './context/ChatbotContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <ChatbotProvider>
+            <App />
+          </ChatbotProvider>
         </AuthProvider>
       </BrowserRouter>
     </Provider>

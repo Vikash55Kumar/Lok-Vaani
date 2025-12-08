@@ -79,16 +79,21 @@ export const FeaturedComment = () => {
 
             // Choose icon and color for sentiment using switch
             let SentimentIcon = ThumbsUp;
+            let iconStyles = "bg-green-100 text-green-600";
+
             switch (comment.sentiment) {
                 case 'Negative':
                 SentimentIcon = ThumbsDown;
+                iconStyles = "bg-red-100 text-red-600";
                 break;
                 case 'Neutral':
                 SentimentIcon = Minus;
+                iconStyles = "bg-yellow-100 text-yellow-600";
                 break;
                 case 'Positive':
                 default:
                 SentimentIcon = ThumbsUp;
+                iconStyles = "bg-green-100 text-green-600";
                 break;
             }
 
@@ -96,8 +101,8 @@ export const FeaturedComment = () => {
                 <div key={comment.id} className="px-3 py-2 hover:bg-gray-50 transition-colors duration-200">
                     <div className="flex items-start gap-3 w-full">
                         {/* Icon */}
-                        <div className="mt-0.5 shrink-0">
-                            <SentimentIcon className="w-3.5 h-3.5 text-gray-900" />
+                        <div className={`mt-0.5 shrink-0 p-1 rounded-full ${iconStyles}`}>
+                            <SentimentIcon className="w-3 h-3" />
                         </div>
 
                         {/* Main content */}

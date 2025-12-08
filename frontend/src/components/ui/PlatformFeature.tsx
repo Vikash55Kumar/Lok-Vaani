@@ -133,7 +133,7 @@ const PlatformFeature: React.FC = () => {
         viewport={{ once: true }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <h3 className="text-lg font-bold text-gray-800">Multilingual Support</h3>
+        <h3 className="text-lg font-bold text-gray-800">Bilingual Support</h3>
         <span className="inline-block px-2 py-1 mt-1 text-xs font-semibold text-blue-600 bg-blue-100 rounded-full">Analytics</span>
         
         <AnimatePresence>
@@ -145,7 +145,7 @@ const PlatformFeature: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="mt-2 text-sm text-gray-600 overflow-hidden"
             >
-              Analyze comments in multiple languages with interactive language selection and translation features.
+              Analyze comments in English and Hindi languages with interactive language selection and translation features.
             </motion.p>
           )}
         </AnimatePresence>
