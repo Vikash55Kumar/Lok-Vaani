@@ -28,6 +28,10 @@ import { getPostsAsync } from './store/slices/postSlice';
 import CommentAnalysis from './pages/dashboard/commentDashboard/CommentAnalysis';
 import { socketUrl } from './utils/baseApi';
 
+import OverallSummary from './pages/dashboard/commentDashboard/OverallSummary';
+import Pricing from './pages/general/Pricing';
+import Alerts from './pages/dashboard/commentDashboard/Alerts';
+
 function App() {
   const dispatch = useAppDispatch();
   const { isAuthenticated } = useAppSelector(state => state.auth);
@@ -84,13 +88,16 @@ function App() {
 
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="pt-[88px]">
+        <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/drafts" element={isAuthenticated ? <DraftPage /> : <Login />} />
             <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/drafts/comment-analysis/:draftId" element={isAuthenticated ? <CommentAnalysis /> : <Login />} />
             <Route path="/drafts/comments-list" element={isAuthenticated ? <CommentList /> : <Login />} />
+            <Route path="/drafts/overall-summary" element={isAuthenticated ? <OverallSummary /> : <Login />} />
+            <Route path="/drafts/alerts" element={isAuthenticated ? <Alerts /> : <Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />

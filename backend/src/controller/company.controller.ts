@@ -6,6 +6,41 @@ import { prisma } from '../db';
 import { logSecurityEvent } from '../utility/auditLogger';
 import { AuthRequest } from '../utility/types';
 
+// Internal function to create company (can be called from other services)
+export async function createCompanyInternal(data: {
+  name: string;
+  uniNumber: string;
+  state: string;
+  businessCategoryId: string;
+}) {
+  const { name, uniNumber, state, businessCategoryId } = data;
+
+  // Check if company already exists
+  const existingCompany = await prisma.company.findUnique({
+    where: { name }
+  });
+
+  if (existingCompany) {
+    return existingCompany; // Return existing company instead of throwing error
+  }
+
+  // Create new company
+  const newCompany = await prisma.company.create({
+    data: {
+      name,
+      uniNumber,
+      state,
+      businessCategoryId
+    }
+  });
+
+  if (!newCompany) {
+    throw new Error("Failed to create company");
+  }
+
+  return newCompany;
+}
+
 // Create new company
 const createCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
@@ -56,11 +91,11 @@ const createCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
 // Get all companies
 const getAllCompanies = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
-    const role = req.user?.role;
+    // const role = req.user?.role;
 
-    if(role !== 'ADMIN' ) {
-        throw new ApiError(403, "Forbidden: Admins only");
-    }
+    // if(role !== 'ADMIN' ) {
+    //     throw new ApiError(403, "Forbidden: Admins only");
+    // }
 
     const companies = await prisma.company.findMany({
       orderBy: { createdAt: 'desc' }
