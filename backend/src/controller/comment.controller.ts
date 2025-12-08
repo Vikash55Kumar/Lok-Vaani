@@ -487,7 +487,8 @@ const getTopNegativeCommentsNew = asyncHandler(async (req: Request, res: Respons
         id: true,
         sentiment: true,
         sentimentScore: true,
-        rawComment: true
+        rawComment: true,
+        standardComment: true,
       }
     });
 
