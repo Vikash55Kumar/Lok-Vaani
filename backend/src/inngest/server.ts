@@ -1,12 +1,16 @@
+import { generateWordCloudEvent } from "./functions/on-cloud_summary-flow";
 import { 
   systemHealthCheck,
   commentFetchScheduler,
-  processRawComments
+  processRawComments,
+  manualCommentFetch
 } from "./functions/on-comment-flow";
 
 // Export functions for the serve handler
 export const functions = [
   systemHealthCheck,
   commentFetchScheduler,
-  processRawComments
+  processRawComments,
+  generateWordCloudEvent,
+  manualCommentFetch
 ];

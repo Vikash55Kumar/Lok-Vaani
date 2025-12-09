@@ -1,14 +1,20 @@
 // src/inngest/commentWorkflow.inngest.ts
 import { prisma } from "../../db/index";
+import { ApiError } from "../../utility/ApiError";
 import { inngest } from "../client";
 import axios from "axios";
+import { createCompanyInternal } from "../../controller/company.controller";
+import * as fs from "fs";
+import * as path from "path";
+import FormData from "form-data";
+import { Storage } from "@google-cloud/storage";
 
 // 1. Fetch from Model 1 every minute and save 3 comments as RAW
 export const commentFetchScheduler = inngest.createFunction(
   { id: "comment-fetch-scheduler" },
   { cron: "*/1 * * * *" },
   async ({ step }) => {
-    const commentsToGenerate = 3;
+    const commentsToGenerate = 2;
     const maxAttemptsPerComment = 3;
     
     let successfulComments = 0;
@@ -119,6 +125,264 @@ export const commentFetchScheduler = inngest.createFunction(
   }
 );
 
+export const manualCommentFetch = inngest.createFunction(
+  { id: "manual-comment-fetch" },
+  { event: "app/manual.comment" },
+  async ({ event, step }) => {
+    const { 
+      postId, 
+      postTitle, 
+      companyId: inputCompanyId, 
+      businessCategoryId, 
+      companyName, 
+      comment, 
+      commentType, 
+      wordCount,
+      state,
+      hasFile,
+      filePath,
+      fileName,
+      fileMimeType
+    } = event.data;
+
+    let finalCompanyId = inputCompanyId;
+    let finalCompanyName = companyName;
+
+    // Step 1: Create company if not provided
+    if (!finalCompanyId) {
+      const newCompany = await step.run("create-company", async () => {
+        console.log(`Creating company: ${companyName} in category: ${businessCategoryId}`);
+        return await createCompanyInternal({
+          name: companyName,
+          businessCategoryId,
+          uniNumber: `USER_${Date.now()}`,
+          state: state || "Unknown"
+        });
+      });
+
+      if (!newCompany) {
+        throw new Error("Failed to create company");
+      }
+
+      finalCompanyId = newCompany.id;
+      finalCompanyName = newCompany.name;
+      console.log(`Company created/found: ${finalCompanyName} (${finalCompanyId})`);
+    }
+
+    // Step 2: Extract text from document using IMAGE_API (only if file provided)
+    const extractedText = await step.run("extract-document-text", async () => {
+      // If no file, use the text comment directly
+      if (!hasFile) {
+        console.log("No file provided, using text comment directly");
+        return {
+          extractedText: comment || "",
+          gcsBucketPath: null
+        };
+      }
+
+      console.log(`Extracting text from document: ${fileName}`);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+
+      // Create FormData and append file
+      const formData = new FormData();
+      const fileStream = fs.createReadStream(filePath);
+      formData.append("file", fileStream, fileName);
+
+      // Call IMAGE_API for OCR
+      const IMAGE_API_URL = process.env.IMAGE_API_URL || process.env.AI_MODEL_URL;
+      if (!IMAGE_API_URL) {
+        throw new Error("IMAGE_API_URL or AI_MODEL_URL not configured");
+      }
+
+      try {
+        const response = await axios.post(
+          `${IMAGE_API_URL}/uploads`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+            },
+            timeout: 60000 // 60 second timeout
+          }
+        );
+
+        console.log("IMAGE_API Response:", JSON.stringify(response.data, null, 2));
+
+        if (!response.data || !response.data.extracted_text) {
+          throw new Error("No text extracted from document");
+        }
+
+        // Normalize extracted text: collapse whitespace and trim
+        const rawExtracted = String(response.data.extracted_text || "");
+        const plainText = rawExtracted.replace(/\s+/g, " ").trim();
+
+        if (plainText.length <= 20) {
+          throw new Error("Extracted text too short (< 20 characters)");
+        }
+
+        console.log(`Extracted ${plainText.length} characters from document`);
+        console.log(`GCS file_path from IMAGE_API: ${response.data.file_path || "NOT PROVIDED"}`);
+        
+        return {
+          extractedText: plainText,
+          gcsBucketPath: response.data.file_path || null
+        };
+      } catch (error: any) {
+        console.error("Error extracting text:", error.message);
+        throw new Error(`Text extraction failed: ${error.message}`);
+      }
+    });
+
+    // Step 3: Upload file directly to GCS (only if file provided)
+    const gcsFilePath = await step.run("upload-to-gcs", async () => {
+      // Skip upload if no file
+      if (!hasFile) {
+        console.log("No file to upload, skipping GCS upload");
+        return null;
+      }
+
+      const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
+      const GCS_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      // Support both Google Cloud (Secret Manager) and Render (env variable)
+      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON || process.env.VERTEX_AI_JSON;
+
+      if (!GCS_BUCKET_NAME) {
+        console.error("STORAGE_BUCKET_NAME not configured");
+        return null;
+      }
+
+      try {
+        // Initialize GCS client with credentials
+        const storageOptions: any = {};
+
+        // Priority 1: Use credentials from env (Render or Secret Manager)
+        if (GCS_CREDENTIALS_JSON) {
+          try {
+            const credentials = JSON.parse(GCS_CREDENTIALS_JSON);
+            storageOptions.credentials = credentials;
+            console.log("Using GCS credentials from env (GOOGLE_CREDENTIALS_JSON or VERTEX_AI_JSON)");
+          } catch (parseError) {
+            console.error("Failed to parse GCS credentials JSON:", parseError);
+          }
+        }
+        // Priority 2: Use local key file (for development)
+        else if (GCS_KEY_FILE && fs.existsSync(GCS_KEY_FILE)) {
+          storageOptions.keyFilename = GCS_KEY_FILE;
+          console.log(`Using GCS credentials from file: ${GCS_KEY_FILE}`);
+        }
+        // Priority 3: Use Application Default Credentials
+        else {
+          console.log("Using default GCS credentials (Application Default Credentials)");
+        }
+
+        const storage = new Storage(storageOptions);
+        const bucket = storage.bucket(GCS_BUCKET_NAME);
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const gcsFileName = `manual-comments/${timestamp}-${sanitizedFileName}`;
+
+        // Upload file with public access
+        await bucket.upload(filePath, {
+          destination: gcsFileName,
+          metadata: {
+            contentType: fileMimeType,
+          },
+        });
+
+        console.log(`File uploaded to GCS: ${gcsFileName}`);
+        return gcsFileName;
+      } catch (error: any) {
+        console.error("GCS upload failed:", error.message || error);
+        // If upload fails, we'll return null and docUrl will be null
+        return null;
+      }
+    });
+
+    // Step 4: Build document URL from GCS path
+    const docUrl = await step.run("build-document-url", async () => {
+      const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
+      // ...existing code...
+      if (!gcsFilePath || !GCS_BUCKET_NAME) {
+        console.error("Cannot build GCS URL - missing bucket name or file path");
+        return null;
+      }
+
+      const url = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${gcsFilePath}`;
+      console.log(`Document URL: ${url}`);
+      return url;
+    });
+
+    // Step 5: Save comment to database
+    const newComment = await step.run("save-comment-to-database", async () => {
+      console.log(`Saving comment to database for post: ${postId}`);
+      
+      return await prisma.comment.create({
+        data: {
+          postId,
+          postTitle,
+          companyId: finalCompanyId,
+          businessCategoryId,
+          stakeholderName: finalCompanyName,
+          rawComment: extractedText.extractedText, // Store extracted text as raw comment
+          commentType,
+          wordCount: extractedText.extractedText.split(/\s+/).length,
+          status: "RAW",
+          docUrl
+        }
+      });
+    });
+
+    if (!newComment) {
+      throw new Error("Failed to save comment to database");
+    }
+
+    console.log(`Comment saved successfully: ${newComment.id}`);
+
+    // Step 6: Cleanup - delete local file (only if file was uploaded)
+    await step.run("cleanup-local-file", async () => {
+      if (!hasFile || !filePath) {
+        console.log("No file to cleanup");
+        return;
+      }
+
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Cleaned up local file: ${filePath}`);
+        }
+      } catch (error: any) {
+        console.warn(`Failed to cleanup file ${filePath}:`, error.message);
+        // Don't throw - cleanup failure is not critical
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        commentId: newComment.id,
+        postId: newComment.postId,
+        postTitle: newComment.postTitle,
+        companyId: newComment.companyId,
+        businessCategoryId: newComment.businessCategoryId,
+        stakeholderName: newComment.stakeholderName,
+        rawComment: newComment.rawComment,
+        commentType: newComment.commentType,
+        wordCount: newComment.wordCount,
+        status: newComment.status,
+        docUrl: newComment.docUrl,
+        extractedTextLength: extractedText.extractedText.length,
+        createdAt: newComment.createdAt
+      }
+    };
+  }
+);
+
 // 2. Process RAW comments: send to Model 2, update DB as ANALYZED
 export const processRawComments = inngest.createFunction(
   { id: "process-raw-comments" },
@@ -214,11 +478,11 @@ export const processRawComments = inngest.createFunction(
             where: { id: comment.id },
             data: {
               // Note: analysisResult IS the data now, so we don't need .data.translated
-              standardComment: analysisResult.translated,
-              language: analysisResult.language_type,
+              standardComment: analysisResult.analyzed_text,
+              language: analysisResult.detected_language,
               sentiment: analysisResult.sentiment,
               sentimentScore: analysisResult.sentimentScore,
-              summary: analysisResult.summary,
+              summary: analysisResult.ai_summary,
               status: "ANALYZED",
               processedAt: new Date(),
               processingError: null

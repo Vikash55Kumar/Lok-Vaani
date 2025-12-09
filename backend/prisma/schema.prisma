@@ -68,14 +68,15 @@ model Post {
   issueDate           DateTime
   deadline            DateTime?
   language            String
+  pdfBase64           String?
+  extractedText       String?
   status              String        @default("ACTIVE")
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
-  pdfBase64           String?
   comments            Comment[]
+  draftChunks         DraftChunk[]
   summaries           PostSummary[]
-  extractedText       String?       // <-- Add this line
-  draftChunks         DraftChunk[] 
+
   @@map("posts")
 }
 
@@ -86,10 +87,15 @@ model Comment {
   companyId          String?
   businessCategoryId String
   stakeholderName    String
+  rawComment         String
+  standardComment    String?
   language           String?
+  sentiment          String?
   weightageScore     Float?
   summary            String?
   keywords           String[]
+  wordCount          Int?
+  sentimentScore     Float?
   status             String           @default("RAW")
   processingError    String?
   processingAttempts Int              @default(0)
@@ -99,16 +105,12 @@ model Comment {
   isSpam             Boolean          @default(false)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  rawComment         String
-  sentimentScore     Float?
-  standardComment    String?
-  wordCount          Int?
-  sentiment          String?
   commentType        String?
+  docUrl             String?
+  commentVector      CommentVector?
   businessCategory   BusinessCategory @relation(fields: [businessCategoryId], references: [id])
   company            Company?         @relation(fields: [companyId], references: [id])
   post               Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  commentVector CommentVector?
 
   @@index([postId])
   @@index([status])
@@ -134,21 +136,35 @@ model Company {
 }
 
 model PostSummary {
-  id            String   @id @default(uuid())
-  postId        String
-  summaryText   String
-  totalComments Int      @default(0)
-  positiveCount Int      @default(0)
-  negativeCount Int      @default(0)
-  neutralCount  Int      @default(0)
-  weightedScore Float?
-  topKeywords   String[]
-  createdAt     DateTime @default(now())
-  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id                 String                  @id @default(uuid())
+  postId             String
+  generatedAt        DateTime                @default(now())
+  categorySummaries  CategorySummary[]
+  post               Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
-  @@index([createdAt])
+  @@index([generatedAt])
   @@map("post_summaries")
+}
+
+model CategorySummary {
+  id                 String      @id @default(uuid())
+  postSummaryId      String
+  businessCategoryId String
+  categoryName       String
+  summaryText        String
+  totalComments      Int         @default(0)
+  positiveCount      Int         @default(0)
+  negativeCount      Int         @default(0)
+  neutralCount       Int         @default(0)
+  weightedScore      Float?
+  topKeywords        String[]
+  createdAt          DateTime    @default(now())
+  postSummary        PostSummary @relation(fields: [postSummaryId], references: [id], onDelete: Cascade)
+
+  @@index([postSummaryId])
+  @@index([businessCategoryId])
+  @@map("category_summaries")
 }
 
 model ProcessingQueue {
@@ -168,24 +184,24 @@ model ProcessingQueue {
 }
 
 model DraftChunk {
-  id        String   @id @default(uuid())
+  id        String                @id @default(uuid())
   postId    String
   content   String
-  embedding Unsupported("vector(768)")
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  embedding Unsupported("vector")
+  createdAt DateTime              @default(now())
+  post      Post                  @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+  @@index([postId], map: "draft_chunks_postid_idx")
   @@map("draft_chunks")
 }
 
 model CommentVector {
-  id        String   @id @default(uuid())
-  commentId String   @unique
-  embedding Unsupported("vector(768)")
-  createdAt DateTime @default(now())
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id        String                @id @default(uuid())
+  commentId String                @unique
+  embedding Unsupported("vector")
+  createdAt DateTime              @default(now())
+  comment   Comment               @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@map("comment_vectors")
 }
-

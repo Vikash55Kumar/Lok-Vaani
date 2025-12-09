@@ -1,12 +1,17 @@
 {
   "name": "neon_database",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "nodemon",
     "inngest-dev": "npx inngest-cli@latest dev",
     "build": "prisma generate && tsc --project tsconfig.build.json",
     "start": "node dist/index.js",
+    "gcp-build": "prisma generate && npm run build",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts"
@@ -30,6 +35,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.18.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.0",
     "@prisma/adapter-neon": "^6.13.0",
@@ -37,6 +43,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/pdfkit": "^0.17.4",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -48,6 +55,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "nodemon": "^3.1.10",
+    "pdfkit": "^0.17.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "ts-node": "^10.9.2",

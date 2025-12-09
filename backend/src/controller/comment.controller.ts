@@ -5,6 +5,12 @@ import ApiResponse from '../utility/ApiResponse';
 import { ApiError } from '../utility/ApiError';
 import { prisma } from '../db/index';
 import { logSecurityEvent } from '../utility/auditLogger';
+import { createCompanyInternal } from './company.controller';
+import * as path from 'path';
+import * as fs from 'fs';
+import axios from 'axios';
+// import PDFDocument from 'pdfkit';
+
 
 // Get comments by post ID
 const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => {
@@ -36,7 +42,10 @@ const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => 
         rawComment: true,
         summary: true,
         sentiment: true,
+        standardComment: true,
         language: true,
+        commentType: true,
+        docUrl: true,
         keywords: true,
         status: true,
         createdAt: true,
@@ -430,17 +439,43 @@ const getAllCommentsWithSentimentCSV = asyncHandler(async (req: Request, res: Re
 
 const getAllCommentsWithSentiment = asyncHandler(async (req: Request, res: Response) => {
   try {
+    const { categoryId } = req.query;
+
+    // Build where clause based on categoryId
+    const whereClause: any = { status: 'ANALYZED' };
+    
+    // If categoryId is provided and not "overall", filter by that category
+    if (categoryId && categoryId !== 'overall') {
+      whereClause.businessCategoryId = categoryId as string;
+    }
+    // If categoryId is "overall" or not provided, fetch all comments (no additional filter)
+
     const comments = await prisma.comment.findMany({
-      where: { status: 'ANALYZED' },
+      where: whereClause,
       select: {
-        rawComment: true,
+        standardComment: true,
         sentiment: true,
+        businessCategoryId: true,
+        company: {
+          select: {
+            businessCategory: {
+              select: {
+                id: true,
+                name: true,
+                categoryType: true
+              }
+            }
+          }
+        }
       },
       orderBy: { updatedAt: 'desc' }
     });
 
-    // Optionally, format as CSV or tabular JSON for export
-    res.status(200).json(new ApiResponse(200, comments, "All comments with sentiment fetched successfully"));
+    res.status(200).json(new ApiResponse(200, {
+      total: comments.length,
+      categoryId: categoryId || 'overall',
+      comments
+    }, "Comments with sentiment fetched successfully"));
   } catch (error) {
     console.error("Error fetching all comments:", error);
     throw new ApiError(500, "Failed to fetch all comments");
@@ -452,18 +487,388 @@ const getAllComments = asyncHandler(async (req: Request, res: Response) => {
     const comments = await prisma.comment.findMany({
       where: { status: 'ANALYZED' },
       select: {
-        rawComment: true,
+        standardComment: true,
       },
       orderBy: { updatedAt: 'desc' }
     });
 
     // Return only the comment text, not the key
-    const commentList = comments.map(c => c.rawComment);
+    const commentList = comments.map(c => c.standardComment);
 
     res.status(200).json(new ApiResponse(200, commentList, "All comments fetched successfully"));
   } catch (error) {
     console.error("Error fetching all comments:", error);
     throw new ApiError(500, "Failed to fetch all comments");
+  }
+});
+
+// get top 5 negative comments with highest sentiment scores
+const getTopNegativeCommentsNew = asyncHandler(async (req: Request, res: Response) => {
+  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
+  try {
+    // First check what negative comments exist
+    const allNegativeComments = await prisma.comment.findMany({
+      where: {
+        postId,
+        status: 'ANALYZED',
+        sentiment: 'Negative'
+      },
+      select: {
+        id: true,
+        sentiment: true,
+        sentimentScore: true,
+        standardComment: true,
+      }
+    });
+
+    console.log('Total negative comments found:', allNegativeComments.length);
+    console.log('Sample sentimentScores:', allNegativeComments.slice(0, 3).map(c => c.sentimentScore));
+
+    // Get top 5 negative comments - if sentimentScore exists use it, otherwise sort by createdAt
+    const topNegativeComments = await prisma.comment.findMany({
+      where: {
+        postId,
+        status: 'ANALYZED',
+        sentiment: 'Negative'
+      },
+      orderBy: [
+        { sentimentScore: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      take: 5,
+      select: {
+        id: true,
+        rawComment: true,
+        summary: true,
+        sentiment: true,
+        sentimentScore: true,
+        standardComment: true,
+        keywords: true,
+        commentType: true,
+        createdAt: true,
+        company: {
+          select: {
+            name: true,
+            state: true,
+            businessCategory: {
+              select: {
+                name: true,
+                categoryType: true,
+                weightageScore: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+      count: topNegativeComments.length,
+      totalNegative: allNegativeComments.length,
+      comments: topNegativeComments
+    }, "Top negative comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching top negative comments:", error);
+    throw new ApiError(500, "Failed to fetch top negative comments");
+  }
+});
+
+// manualCommentFetch - Direct API without Inngest
+const manualCommentFetchNew = asyncHandler(async (req, res) => {
+  let { companyId, businessCategoryId, companyName, comment, commentType, state } = req.body;
+  
+  // User category ID (citizens/general users)
+  const USER_CATEGORY_ID = "801e4fc0-9ea9-4980-811a-bb799c6da05e";
+  const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
+  const postTitle = "Invitation for public comments on establishment of Indian Multi-Disciplinary Partnership (MDP) firms.";
+
+  // Extract uploaded file (optional)
+  const file = (req.files && (req.files as any)["file"] && (req.files as any)["file"][0]) || null;
+
+  // Validate: Either file OR comment text is required
+  if (!file && !comment) {
+    throw new ApiError(400, "Either file upload or comment text is required");
+  }
+
+  // Set default values if not provided
+  if (!companyId) {
+    businessCategoryId = USER_CATEGORY_ID;
+  }
+
+  try {
+    let finalCompanyId = companyId;
+    let finalCompanyName = companyName;
+    let extractedText = comment || "";
+    let docUrl = null;
+
+    // Step 1: Create company if not provided
+    if (!finalCompanyId) {
+      console.log(`Creating company: ${companyName} in category: ${businessCategoryId}`);
+      const newCompany = await createCompanyInternal({
+        name: companyName || "Unknown User",
+        businessCategoryId,
+        uniNumber: `USER_${Date.now()}`,
+        state: state || "Unknown"
+      });
+
+      if (!newCompany) {
+        throw new ApiError(500, "Failed to create company");
+      }
+
+      finalCompanyId = newCompany.id;
+      finalCompanyName = newCompany.name;
+      console.log(`Company created: ${finalCompanyName} (${finalCompanyId})`);
+    }
+
+    // Step 2: Extract text from document if file provided
+    if (file) {
+      console.log(`Extracting text from document: ${file.originalname}`);
+      
+      if (!fs.existsSync(file.path)) {
+        throw new ApiError(400, "Uploaded file not found");
+      }
+
+      // Create FormData and append file
+      const FormData = require('form-data');
+      const formData = new FormData();
+      const fileStream = fs.createReadStream(file.path);
+      formData.append("file", fileStream, file.originalname);
+
+      // Call IMAGE_API for OCR
+      const IMAGE_API_URL = process.env.IMAGE_API_URL || process.env.AI_MODEL_URL;
+      if (!IMAGE_API_URL) {
+        throw new ApiError(500, "IMAGE_API_URL not configured");
+      }
+
+      try {
+        const response = await axios.post(
+          `${IMAGE_API_URL}/uploads`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+            },
+            timeout: 60000
+          }
+        );
+
+        if (!response.data || !response.data.extracted_text) {
+          throw new ApiError(500, "Failed to extract text from document");
+        }
+
+        // Normalize extracted text
+        const rawExtracted = String(response.data.extracted_text || "");
+        extractedText = rawExtracted.replace(/\s+/g, " ").trim();
+
+        if (extractedText.length <= 20) {
+          throw new ApiError(400, "Extracted text too short (< 20 characters)");
+        }
+
+        console.log(`Extracted ${extractedText.length} characters from document`);
+      } catch (error: any) {
+        console.error("Error extracting text:", error.message);
+        throw new ApiError(500, `Text extraction failed: ${error.message}`);
+      }
+
+      // Step 3: Upload file to GCS
+      const GCS_BUCKET_NAME = process.env.STORAGE_BUCKET_NAME;
+      const GCS_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      const GCS_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS_JSON || process.env.VERTEX_AI_JSON;
+
+      if (GCS_BUCKET_NAME) {
+        try {
+          const { Storage } = require('@google-cloud/storage');
+          const storageOptions: any = {};
+
+          // Use credentials from env (Render or Secret Manager)
+          if (GCS_CREDENTIALS_JSON) {
+            try {
+              const credentials = JSON.parse(GCS_CREDENTIALS_JSON);
+              storageOptions.credentials = credentials;
+              console.log("Using GCS credentials from env");
+            } catch (parseError) {
+              console.error("Failed to parse GCS credentials JSON:", parseError);
+            }
+          }
+          // Use local key file (for development)
+          else if (GCS_KEY_FILE && fs.existsSync(GCS_KEY_FILE)) {
+            storageOptions.keyFilename = GCS_KEY_FILE;
+            console.log(`Using GCS credentials from file: ${GCS_KEY_FILE}`);
+          }
+
+          const storage = new Storage(storageOptions);
+          const bucket = storage.bucket(GCS_BUCKET_NAME);
+
+          // Generate unique filename
+          const timestamp = Date.now();
+          const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const gcsFileName = `manual-comments/${timestamp}-${sanitizedFileName}`;
+
+          // Upload file
+          await bucket.upload(file.path, {
+            destination: gcsFileName,
+            metadata: {
+              contentType: file.mimetype,
+            },
+          });
+
+          docUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${gcsFileName}`;
+          console.log(`File uploaded to GCS: ${docUrl}`);
+        } catch (error: any) {
+          console.error("GCS upload failed:", error.message);
+          // Continue without docUrl
+        }
+      }
+
+      // Step 4: Cleanup local file
+      try {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+          console.log(`Cleaned up local file: ${file.path}`);
+        }
+      } catch (error: any) {
+        console.warn(`Failed to cleanup file:`, error.message);
+      }
+    }
+
+    // Step 5: Save comment to database
+    const newComment = await prisma.comment.create({
+      data: {
+        postId,
+        postTitle,
+        companyId: finalCompanyId,
+        businessCategoryId,
+        stakeholderName: finalCompanyName,
+        rawComment: extractedText,
+        commentType: commentType || "overall",
+        wordCount: extractedText.split(/\s+/).length,
+        status: "RAW",
+        docUrl
+      },
+      include: {
+        company: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    console.log(`Comment saved successfully: ${newComment.id}`);
+
+    res.status(200).json(new ApiResponse(200, {
+      commentId: newComment.id,
+      docUrl: newComment.docUrl,
+      companyId: newComment.companyId,
+      companyName: newComment.company?.name,
+      comment: newComment.rawComment,
+      postId: newComment.postId,
+      status: newComment.status,
+      extractedTextLength: newComment.rawComment?.length || 0
+    }, "Comment saved successfully"));
+  } catch (error: any) {
+    console.error("Error submitting comment:", error);
+    throw new ApiError(500, `Failed to submit comment: ${error.message}`);
+  }
+});
+
+// Get clause-wise sentiment analysis
+const getClauseWiseSentimentNew = asyncHandler(async (req: Request, res: Response) => {
+  const postId= "a90315d4-b2b1-4836-a848-b47e318a5fa5"
+
+  try {
+    // Get all analyzed comments with their comment types (which represent clauses)
+    const comments = await prisma.comment.findMany({
+      where: { 
+        postId, 
+        status: 'ANALYZED',
+        commentType: { not: null }
+      },
+      select: {
+        commentType: true,
+        sentiment: true,
+      }
+    });
+
+    if (comments.length === 0) {
+      return res.status(200).json(new ApiResponse(200, {
+        clauses: [],
+        message: "No analyzed comments found"
+      }, "No analyzed comments found for this post"));
+    }
+
+    // Group comments by clause (commentType) and count sentiments
+    const clauseMap = new Map<string, { positive: number; negative: number; neutral: number; total: number }>();
+
+    comments.forEach(comment => {
+      const clause = comment.commentType || 'overall';
+      
+      if (!clauseMap.has(clause)) {
+        clauseMap.set(clause, { positive: 0, negative: 0, neutral: 0, total: 0 });
+      }
+
+      const clauseData = clauseMap.get(clause)!;
+      clauseData.total++;
+
+      switch (comment.sentiment?.toLowerCase()) {
+        case 'positive':
+          clauseData.positive++;
+          break;
+        case 'negative':
+          clauseData.negative++;
+          break;
+        case 'neutral':
+          clauseData.neutral++;
+          break;
+      }
+    });
+
+    // Convert map to array format
+    const clausesAnalysis = Array.from(clauseMap.entries()).map(([clause, data]) => ({
+      clause,
+      positive: data.positive,
+      negative: data.negative,
+      neutral: data.neutral,
+      total: data.total,
+      positivePercentage: Math.round((data.positive / data.total) * 100 * 100) / 100,
+      negativePercentage: Math.round((data.negative / data.total) * 100 * 100) / 100,
+      neutralPercentage: Math.round((data.neutral / data.total) * 100 * 100) / 100
+    }));
+
+    // Sort by total comments (most discussed clauses first)
+    clausesAnalysis.sort((a, b) => b.total - a.total);
+
+    res.status(200).json(new ApiResponse(200, {
+      postId,
+      totalAnalyzedComments: comments.length,
+      clauses: clausesAnalysis
+    }, "Clause-wise sentiment analysis fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching clause-wise sentiment:", error);
+    throw new ApiError(500, "Failed to fetch clause-wise sentiment analysis");
+  }
+});
+
+// Get all Hindi comments
+const getAllHindiComments = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { 
+        status: 'ANALYZED',
+        language: 'Hindi' // Filter for Hindi comments
+      },
+      select: {
+        rawComment: true,
+      }
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+      totalHindiComments: comments.length,
+      comments
+    }, "Hindi comments fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching Hindi comments:", error);
+    throw new ApiError(500, "Failed to fetch Hindi comments");
   }
 });
 
@@ -477,5 +882,9 @@ export {
   verifyCompanyComment,
   getAllCommentsWithSentiment,
   getAllCommentsWithSentimentCSV,
-  getAllComments
+  getAllComments,
+  manualCommentFetchNew,
+  getClauseWiseSentimentNew,
+  getTopNegativeCommentsNew,
+  getAllHindiComments
 };
