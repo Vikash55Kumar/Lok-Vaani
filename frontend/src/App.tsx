@@ -8,6 +8,7 @@ import { useSocketProgress } from './hooks/useSocketProgress';
 
 // Public Pages
 import About from './pages/general/About';
+import Pricing from './pages/general/Pricing';
 // import Help from './pages/general/Help';
 
 // Auth Pages
@@ -29,8 +30,8 @@ import CommentAnalysis from './pages/dashboard/commentDashboard/CommentAnalysis'
 import { socketUrl } from './utils/baseApi';
 
 import OverallSummary from './pages/dashboard/commentDashboard/OverallSummary';
-import Pricing from './pages/general/Pricing';
 import Alerts from './pages/dashboard/commentDashboard/Alerts';
+import UserCommentPage from './pages/usercomment/UserCommentPage';
 
 function App() {
   const dispatch = useAppDispatch();
@@ -98,6 +99,7 @@ function App() {
             <Route path="/drafts/comments-list" element={isAuthenticated ? <CommentList /> : <Login />} />
             <Route path="/drafts/overall-summary" element={isAuthenticated ? <OverallSummary /> : <Login />} />
             <Route path="/drafts/alerts" element={isAuthenticated ? <Alerts /> : <Login />} />
+            <Route path="/user-comment" element={isAuthenticated ? <UserCommentPage /> : <Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />

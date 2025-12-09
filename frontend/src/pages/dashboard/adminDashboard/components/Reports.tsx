@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChartBarIcon,
   DocumentChartBarIcon,
@@ -6,6 +6,9 @@ import {
   MagnifyingGlassIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import { usePdfExport } from '../../../../hooks/usePdfExport';
+import ReportTemplate from '../../../../components/dashboard/ReportTemplate';
+import SystemOverview from './SystemOverview';
 
 interface ReportTemplate {
   id: string;
@@ -40,6 +43,10 @@ const Reports: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // PDF Export hooks
+  const { exportToPdf } = usePdfExport();
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchReports();
@@ -189,13 +196,15 @@ const Reports: React.FC = () => {
   };
 
   const handleGenerateReport = async (templateId: string) => {
-    // TODO: Implement report generation
+    // Generate PDF for the "User Activity Report" (using SystemOverview as mock)
     console.log('Generating report for template:', templateId);
+    await exportToPdf(reportRef, { fileName: 'System_Report.pdf' });
   };
 
   const handleDownloadReport = async (reportId: string) => {
-    // TODO: Implement report download
+    // Re-download the PDF
     console.log('Downloading report:', reportId);
+    await exportToPdf(reportRef, { fileName: 'System_Report_Downloaded.pdf' });
   };
 
   const CreateReportModal: React.FC = () => (
@@ -312,6 +321,13 @@ const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Hidden Report Template for Printing */}
+      <div style={{ position: 'absolute', top: -9999, left: -9999 }}>
+        <ReportTemplate ref={reportRef} title="System Overview Report" subtitle="Comprehensive Analysis of System Metrics">
+          <SystemOverview />
+        </ReportTemplate>
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

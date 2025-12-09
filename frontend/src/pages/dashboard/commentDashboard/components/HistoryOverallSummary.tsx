@@ -1,53 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { History, Clock, Activity } from 'lucide-react';
+import { getHistoryByCategory, type HistoryItem, type CategoryType } from '../../../../services/summaryService';
 
-const HISTORY_ITEMS = [
-  {
-    id: '1',
-    title: "Weekly Sentiment Report",
-    timestamp: "2025-12-04T09:00:00",
-    description: "Generated weekly analysis for all business categories.",
-    type: "report"
-  },
-  {
-    id: '2',
-    title: "Data Sync Completed",
-    timestamp: "2025-12-03T14:30:00",
-    description: "Successfully synchronized 1,200 new comments.",
-    type: "sync"
-  },
-  {
-    id: '3',
-    title: "Alert: Infrastructure",
-    timestamp: "2025-12-03T10:15:00",
-    description: "Negative sentiment spike detected in Infrastructure sector.",
-    type: "alert"
-  },
-  {
-    id: '4',
-    title: "Monthly Summary Export",
-    timestamp: "2025-12-01T16:45:00",
-    description: "November 2025 summary exported to PDF.",
-    type: "export"
-  },
-  {
-    id: '5',
-    title: "System Update",
-    timestamp: "2025-12-01T08:00:00",
-    description: "Dashboard metrics algorithm updated.",
-    type: "system"
-  }
-];
+interface HistoryOverallSummaryProps {
+  category: CategoryType;
+}
 
-const HistoryOverallSummary = () => {
+const HistoryOverallSummary: React.FC<HistoryOverallSummaryProps> = ({ category }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+
+  useEffect(() => {
+    // Fetch history for the selected category
+    const items = getHistoryByCategory(category);
+    setHistoryItems(items);
+    setActiveId(null); // Reset selection when category changes
+  }, [category]);
 
   return (
     <div className="w-full bg-white border border-gray-200 shadow-sm rounded-none flex flex-col h-[600px]">
       <div className="px-3 py-2 bg-blue-900 flex items-center justify-between shrink-0">
         <h3 className="text-base font-medium text-white flex items-center gap-1.5">
           <History className="w-4 h-4 text-white" />
-          History
+          History - {category}
         </h3>
         <span className="text-xs text-white/80 bg-white/10 px-2 py-0.5 rounded-none">
           Recent Activity
@@ -55,12 +30,8 @@ const HistoryOverallSummary = () => {
       </div>
       
       <div className="divide-y divide-gray-100 flex-1 overflow-y-auto">
-        {HISTORY_ITEMS.map((item) => {
-            let datePart = item.timestamp;
-            if (item.timestamp && item.timestamp.includes('T')) {
-                const [date, time] = item.timestamp.split('T');
-                datePart = `${date} ${time.substring(0, 5)}`;
-            }
+        {historyItems.map((item) => {
+            const datePart = `${item.date} ${item.time}`;
             const isActive = item.id === activeId;
 
             return (
@@ -83,10 +54,7 @@ const HistoryOverallSummary = () => {
                         <div className="flex-1 min-w-0">
                             <div className="mb-1.5">
                                 <p className={`text-sm font-medium leading-relaxed line-clamp-1 ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
-                                    {item.title}
-                                </p>
-                                <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
-                                    {item.description}
+                                    {item.name}
                                 </p>
                             </div>
                             
