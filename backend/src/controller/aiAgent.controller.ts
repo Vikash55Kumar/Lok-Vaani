@@ -183,7 +183,10 @@ export const askAgent = asyncHandler(async (req: Request, res: Response) => {
     // 4. Get latest post summary for aggregate statistics
     const postSummary = await prisma.postSummary.findFirst({
       where: { postId },
-      orderBy: { createdAt: 'desc' },
+      include: {
+        categorySummaries: true
+      },
+      orderBy: { generatedAt: 'desc' },
     });
 
     // 5. Get post title for context
@@ -203,15 +206,44 @@ export const askAgent = asyncHandler(async (req: Request, res: Response) => {
       )
       .join('\n');
 
-    const statisticsContext = postSummary
-      ? `Overall Statistics for this draft:
-- Total Comments: ${postSummary.totalComments}
-- Positive: ${postSummary.positiveCount} (${Math.round((postSummary.positiveCount / postSummary.totalComments) * 100)}%)
-- Negative: ${postSummary.negativeCount} (${Math.round((postSummary.negativeCount / postSummary.totalComments) * 100)}%)
-- Neutral: ${postSummary.neutralCount} (${Math.round((postSummary.neutralCount / postSummary.totalComments) * 100)}%)
-- Weighted Sentiment Score: ${postSummary.weightedScore || 'N/A'}
-- Top Keywords: ${postSummary.topKeywords?.join(', ') || 'None'}`
-      : "No aggregate statistics available for this draft.";
+    // Aggregate statistics from category summaries
+    let statisticsContext = "No aggregate statistics available for this draft.";
+    
+    if (postSummary && postSummary.categorySummaries.length > 0) {
+      const totalComments = postSummary.categorySummaries.reduce((sum, cat) => sum + cat.totalComments, 0);
+      const positiveCount = postSummary.categorySummaries.reduce((sum, cat) => sum + cat.positiveCount, 0);
+      const negativeCount = postSummary.categorySummaries.reduce((sum, cat) => sum + cat.negativeCount, 0);
+      const neutralCount = postSummary.categorySummaries.reduce((sum, cat) => sum + cat.neutralCount, 0);
+      
+      // Collect all keywords across categories
+      const allKeywords = new Map<string, number>();
+      postSummary.categorySummaries.forEach(cat => {
+        cat.topKeywords?.forEach(keyword => {
+          allKeywords.set(keyword, (allKeywords.get(keyword) || 0) + 1);
+        });
+      });
+      const topKeywords = Array.from(allKeywords.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([keyword]) => keyword);
+
+      const avgWeightedScore = totalComments > 0
+        ? postSummary.categorySummaries.reduce((sum, cat) => sum + (cat.weightedScore || 0) * cat.totalComments, 0) / totalComments
+        : 0;
+
+      statisticsContext = `Overall Statistics for this draft:
+- Total Comments: ${totalComments}
+- Positive: ${positiveCount} (${totalComments > 0 ? Math.round((positiveCount / totalComments) * 100) : 0}%)
+- Negative: ${negativeCount} (${totalComments > 0 ? Math.round((negativeCount / totalComments) * 100) : 0}%)
+- Neutral: ${neutralCount} (${totalComments > 0 ? Math.round((neutralCount / totalComments) * 100) : 0}%)
+- Average Weighted Score: ${avgWeightedScore.toFixed(2)}
+- Top Keywords: ${topKeywords.join(', ') || 'None'}
+
+Category Breakdown:
+${postSummary.categorySummaries.map(cat => 
+  `  • ${cat.categoryName}: ${cat.totalComments} comments (Score: ${cat.weightedScore?.toFixed(2) || 'N/A'})`
+).join('\n')}`;
+    }
 
     const fullContext = `
 Draft Title: ${post?.title || 'Unknown'}
