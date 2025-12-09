@@ -19,6 +19,8 @@ import Register from './pages/auth/Register';
 // import Dashboard from './pages/dashboard/Dashboard';
 import AdminDashboard from './pages/dashboard/adminDashboard/AdminDashboard';
 import BureaucratsDashboard from './pages/dashboard/bureaucratsDashboard/BureaucratsDashboard';
+import ClerkDashboard from './pages/dashboard/clerkDashboard/clerkDashboard';
+import MinistryDashboard from './pages/dashboard/ministryDashboard/ministryDashboard';
 import DraftPage from './pages/general/drafts';
 // import UserReports from './pages/dashboard/userDashboard/UserReports';
 // import SearchHistory from './pages/dashboard/userDashboard/SearchHistory';
@@ -102,6 +104,8 @@ function App() {
             <Route path="/drafts/alerts" element={isAuthenticated ? <Alerts /> : <Login />} />
             <Route path="/user-comment" element={isAuthenticated ? <UserCommentPage /> : <Login />} />
             <Route path="/bdashboard" element={isAuthenticated ? <BureaucratsDashboard /> : <Login />} />
+            <Route path="/cdashboard" element={isAuthenticated ? <ClerkDashboard /> : <Login />} />
+            <Route path="/mdashboard" element={isAuthenticated ? <MinistryDashboard /> : <Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />
