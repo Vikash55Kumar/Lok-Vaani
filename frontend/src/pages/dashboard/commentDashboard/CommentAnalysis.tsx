@@ -12,7 +12,7 @@ import { getCategoryCommentsCountAsync, getCommentsByPostIdAsync, getCommentsCou
 import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
 import { CommentSummary, Sidebar } from './components';
 import SentimentLineChart from './components/SentimentLineChart';
-// import AIAgentChatbot from '../AIAgentChatbot';
+import AIAgentChatbot from '../AIAgentChatbot';
 import { useChatbot } from '../../../context/ChatbotContext';
 import { cn } from '@/lib/utils';
 
@@ -226,7 +226,7 @@ const CommentAnalysis = () => {
           </div>
         </div>
       </div>
-      {/* <AIAgentChatbot /> */}
+      <AIAgentChatbot />
     </div>
   );
 };

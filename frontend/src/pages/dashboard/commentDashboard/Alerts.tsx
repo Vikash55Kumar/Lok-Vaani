@@ -1,5 +1,5 @@
 import { AlertsSection, Sidebar } from './components';
-// import AIAgentChatbot from '../AIAgentChatbot';
+import AIAgentChatbot from '../AIAgentChatbot';
 import { useChatbot } from '../../../context/ChatbotContext';
 
 const Alerts = () => {
@@ -31,7 +31,7 @@ const Alerts = () => {
             <AlertsSection alerts={alerts} />
         </div>
       </div>
-      {/* <AIAgentChatbot /> */}
+      <AIAgentChatbot />
     </div>
   )
 }

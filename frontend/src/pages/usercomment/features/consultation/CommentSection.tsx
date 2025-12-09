@@ -43,7 +43,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ onSubmit, disabled = fa
     } else {
       setPrevComment(comment);
       resetTranscript();
-      SpeechRecognition.startListening({ continuous: true, language: 'hi-IN', });
+      SpeechRecognition.startListening({ continuous: true, language: 'en-IN', });
     }
   };
 

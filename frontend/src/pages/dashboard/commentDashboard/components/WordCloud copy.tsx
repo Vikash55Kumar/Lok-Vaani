@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Cloud, Loader2 } from 'lucide-react';
-import hindiWordCloudImage from '../../../../assets/hindiwc.jpg';
 
 const WordCloud: React.FC = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -13,35 +12,16 @@ const WordCloud: React.FC = () => {
     const fetchWordCloud = async () => {
       setLoading(true);
       setError(null);
-
-      // Special Logic for Hindi
-      if (language === 'hi') {
-        try {
-          // 1. Simulate "Generating" delay (e.g., 2 seconds) to show the animation
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-
-          // 2. Set the static image directly
-          // REPLACE '/hindi-wordcloud.png' with the actual path to your image in the public folder
-          // or a URL to an image that looks like a real Hindi word cloud.
-          setImageUrl(hindiWordCloudImage); 
-          setLastUpdated(new Date());
-        } catch (err) {
-          console.error(err);
-          setError('Failed to load Hindi word cloud');
-        } finally {
-          setLoading(false);
-        }
-        return; // Exit early so we don't run the API logic below
-      }
-
-      // Existing Logic for English (API)
       try {
-        const apiUrl = import.meta.env.VITE_WORD_CLOUD_API;
+        const apiUrl = language === 'en' 
+          ? import.meta.env.VITE_WORD_CLOUD_API 
+          : import.meta.env.VITE_WORD_CLOUD_API_HINDI;
 
         if (!apiUrl) {
              console.warn(`API URL for ${language} might be missing.`);
-             throw new Error("API configuration missing");
         }
+        
+        if (!apiUrl) throw new Error("API configuration missing");
 
         const response = await fetch(apiUrl);
         if (!response.ok) {
@@ -76,7 +56,7 @@ const WordCloud: React.FC = () => {
         
         {/* Container for Last Updated and Language Selector */}
         <div className="flex items-center gap-4">
-          {lastUpdated && !loading && (
+          {lastUpdated && (
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -116,8 +96,8 @@ const WordCloud: React.FC = () => {
                   <img 
                     src={imageUrl} 
                     alt="Word Cloud Analysis - Most frequently used words in comments"
-                    className="w-full h-[400px] shadow-sm object-contain" 
-                    style={{ maxHeight: '400px' }}
+                    className="w-full h-[400px] shadow-sm"
+                    style={{ maxHeight: '400px', }}
                   />
                 )
               )}

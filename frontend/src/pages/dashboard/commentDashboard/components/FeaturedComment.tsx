@@ -2,7 +2,7 @@ import { ThumbsUp, ThumbsDown, Minus, Star } from 'lucide-react';
 import type { CommentProps } from '@/types';
 import { useEffect, useState } from 'react';
 
-const API_URL = 'https://lok-vaani-1.onrender.com/api/v1/comments/top-negative-comments';
+const API_URL = import.meta.env.VITE_FEAUTURED_COMMENTS;
 
 export const FeaturedComment = () => {
   const [comments, setComments] = useState<CommentProps[]>([]);
