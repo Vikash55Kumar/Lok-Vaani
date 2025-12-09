@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+FROM python:3.10-slim
 
 # 2. Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,8 +8,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update && apt-get install -y \
     git \
-    python3 \
-    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # 4. Create working directory
