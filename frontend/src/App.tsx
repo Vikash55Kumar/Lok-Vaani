@@ -18,6 +18,7 @@ import Register from './pages/auth/Register';
 // Private Pages
 // import Dashboard from './pages/dashboard/Dashboard';
 import AdminDashboard from './pages/dashboard/adminDashboard/AdminDashboard';
+import BureaucratsDashboard from './pages/dashboard/bureaucratsDashboard/BureaucratsDashboard';
 import DraftPage from './pages/general/drafts';
 // import UserReports from './pages/dashboard/userDashboard/UserReports';
 // import SearchHistory from './pages/dashboard/userDashboard/SearchHistory';
@@ -100,6 +101,7 @@ function App() {
             <Route path="/drafts/overall-summary" element={isAuthenticated ? <OverallSummary /> : <Login />} />
             <Route path="/drafts/alerts" element={isAuthenticated ? <Alerts /> : <Login />} />
             <Route path="/user-comment" element={isAuthenticated ? <UserCommentPage /> : <Login />} />
+            <Route path="/bdashboard" element={isAuthenticated ? <BureaucratsDashboard /> : <Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />

@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../../hooks/redux';
 import { useCommentSocketUpdates } from '../../../hooks/useCommentSocketUpdates';
 import { type Comment } from '../../../services/commentService';
-// import AIAgentChatbot from '../AIAgentChatbot';
+import AIAgentChatbot from '../AIAgentChatbot';
 import { useChatbot } from '../../../context/ChatbotContext';
 import { cn } from '@/lib/utils';
 
@@ -360,7 +360,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
     </div>
     </div>
     </div>
-      {/* <AIAgentChatbot /> */}
+      <AIAgentChatbot />
     </div>
   );
 };

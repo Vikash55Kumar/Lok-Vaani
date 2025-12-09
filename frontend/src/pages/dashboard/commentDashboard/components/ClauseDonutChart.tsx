@@ -34,7 +34,7 @@ const ClauseDonutChart: React.FC<SentimentDonutChartProps> = () => {
   useEffect(() => {
     const fetchClauseData = async () => {
       try {
-        const response = await fetch('https://lok-vaani-1.onrender.com/api/v1/comments/clause-wise-sentiment');
+        const response = await fetch(import.meta.env.VITE_CLAUSE_ANALYSIS);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

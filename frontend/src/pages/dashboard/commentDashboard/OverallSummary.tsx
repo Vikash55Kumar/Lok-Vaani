@@ -1,6 +1,6 @@
 import SummariesByCategory from "./components/SummariesByCategory"
 import { Sidebar } from "./components"
-// import AIAgentChatbot from "../AIAgentChatbot"
+import AIAgentChatbot from "../AIAgentChatbot"
 import { useChatbot } from "../../../context/ChatbotContext"
 
 const OverallSummary = () => {
@@ -14,7 +14,7 @@ const OverallSummary = () => {
             <SummariesByCategory />
           </div>
         </main>
-        {/* <AIAgentChatbot /> */}
+        <AIAgentChatbot />
     </div>
   )
 }
