@@ -12,7 +12,7 @@ import {
   getClauseWiseSentimentNew,
   getTopNegativeCommentsNew,
   manualCommentFetchNew,
-  getAllHindiComments
+  getAllHindiComments,
 } from '../controller/comment.controller';
 import { upload } from '../middleware/multer';
 
