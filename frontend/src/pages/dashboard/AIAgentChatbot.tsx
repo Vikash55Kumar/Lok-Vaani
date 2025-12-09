@@ -6,6 +6,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useChatbot } from '../../context/ChatbotContext';
 import agentLogo from '../../assets/agentlogo.png';
+import { getGeminiResponse } from './services/geminiService';
 
 // Utility for tailwind class merging
 function cn(...inputs: ClassValue[]) {
@@ -44,10 +45,11 @@ const AIAgentChatbot: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    const userText = inputValue;
     const newUserMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      text: inputValue,
+      text: userText,
       timestamp: new Date(),
     };
 
@@ -55,17 +57,27 @@ const AIAgentChatbot: React.FC = () => {
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const responseText = await getGeminiResponse(userText);
       const newAgentMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'agent',
-        text: "I'm processing your request. This is a simulated response.",
+        text: responseText,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newAgentMessage]);
+    } catch (error) {
+      console.error('Error getting response:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'agent',
+        text: "I'm sorry, I'm having trouble connecting right now.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

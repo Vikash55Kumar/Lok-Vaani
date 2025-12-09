@@ -137,7 +137,7 @@ const formatSummary = (text: string) => {
 
         // Bold text parsing helper
         const parseBold = (content: string) => {
-          const parts = content.split(/(\*\*.*?\*\*)/g);
+          const parts = content.split(/(\**.*\**?)/g);
           return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               return <span key={i} className="font-bold text-blue-900 bg-blue-50 px-1 rounded">{part.slice(2, -2)}</span>;
@@ -178,6 +178,129 @@ const formatSummary = (text: string) => {
   );
 };
 
+// --- MOCK DATA (Simulating statusCode 200.docx content) ---
+const MOCK_DATA: Record<string, string> = {
+  "Overall Summary": `## Policy Analysis Report: Multi-Disciplinary Partnership (MDP) Firms in India
+
+---
+
+### 1. EXECUTIVE SUMMARY
+
+This report analyzes public comments regarding the proposed establishment of Multi-Disciplinary Partnership (MDP) firms in India. The analysis reveals a predominantly neutral sentiment, with a significant positive leaning, towards the concept of MDPs, largely driven by the potential for strengthening India's professional services sector and fostering economic self-reliance ("Atmanirbhar Bharat"). However, a critical and recurring concern across public feedback is the paramount need for **transparency** in the structure, functioning, and oversight of these firms.
+
+Key issues identified include the potential for **conflicts of interest**, the necessity for **clear operational guidelines**, and the establishment of **robust monitoring and accountability mechanisms**. While the benefits of MDPs are acknowledged, the public emphasizes that these advancements must not compromise ethical standards or lead to a reduction in transparency. The recommendations focus on developing comprehensive guidelines, implementing conflict of interest mitigation strategies, and establishing effective oversight bodies to ensure the responsible and ethical growth of MDP firms.
+
+---
+
+### 2. METHODOLOGY
+
+This policy analysis is based on the examination of 1919 unique public comments submitted in response to proposals concerning Multi-Disciplinary Partnership (MDP) firms. The comments were subjected to a clustering process, resulting in the identification of a single dominant cluster (Cluster 0) that encapsulates the primary themes and concerns expressed by the public.
+
+The analysis employed a qualitative approach to identify dominant themes, common concerns, and representative sentiments within the public discourse. The sentiment distribution for the analyzed comments was calculated as follows:
+
+*   **Negative:** 143 comments (7.5%)
+*   **Positive:** 573 comments (29.9%)
+*   **Neutral:** 1203 comments (62.7%)
+
+The focus of this report is on the insights derived from Cluster 0, which represents the collective voice of concerned citizens and civil society organizations prioritizing transparency. The methodology involved:
+
+*   **Theme Identification:** Identifying recurring topics and ideas within the public comments.
+*   **Concern Articulation:** Pinpointing specific anxieties and potential drawbacks raised by stakeholders.
+*   **Sentiment Assessment:** Quantifying the overall emotional tone of the comments.
+*   **Issue Prioritization:** Determining the most critical issues based on their frequency and emphasis in the feedback.
+*   **Actionable Recommendation Formulation:** Developing practical suggestions to address the identified issues.
+
+---
+
+### 3. PUBLIC RESPONSE ANALYSIS
+
+The public response to the proposed establishment of Multi-Disciplinary Partnership (MDP) firms is characterized by a general acceptance of the concept, coupled with a strong emphasis on ensuring responsible implementation.
+
+**Dominant Themes:**
+
+*   **Support for MDP Firms:** A significant portion of the public views MDP firms as a positive development for India's professional services sector. This support is often framed within the context of enhancing global competitiveness, fostering economic sovereignty, and achieving the goals of "Atmanirbhar Bharat" (self-reliant India).
+*   **Emphasis on Transparency:** The most prominent and consistently raised theme is the absolute necessity for transparency. Stakeholders are keen to understand the structure.`,
+
+  "Corporate Debtor": `### **Impact on Corporate Debtors**
+  Feedback from and regarding Corporate Debtors focuses heavily on the **initiation of insolvency proceedings**.
+
+  *   **Thresholds:** Many argue that the default threshold should be revisited to prevent premature insolvencies for MSMEs.
+  *   **Management Control:** Concerns raised about the erosion of promoter control during the resolution process.
+
+  **Specific Feedback:**
+  > "Promoters should be given a fair chance to present a revival plan before the company goes into CIRP."
+`,
+
+  "Personal Guarantor to a Corporate Debtor": `### **Personal Guarantors Analysis**
+  This category has seen a sharp increase in activity due to recent legal precedents.
+
+  ## **Major Concerns**
+  1.  **Liability Extent:** Unclear guidelines on the extent of liability when the principal borrower is under resolution.
+  2.  **Asset Seizure:** Fears regarding the aggressive seizure of personal assets without adequate appellate remedies.
+
+  *   Stakeholders are asking for a **clearer separation** between personal and corporate liabilities.`,
+
+  "Investors": `### **Investor Perspective**
+  Investors are looking for **predictability** and **speed**.
+
+  *   **Value Erosion:** Long delays in the admission and approval of resolution plans are cited as the primary cause of value erosion.
+  *   **Clean Slate:** Investors demand stronger guarantees that the "Clean Slate" theory will protect them from past offenses of the corporate debtor.
+
+  **Recommendation:**
+  > "Automated approvals for compliant resolution plans could significantly attract more foreign investment."
+`,
+
+  "Insolvency Professional": `### **Insolvency Professionals (IP) Feedback**
+  IPs face the brunt of operational challenges.
+
+  *   **Fee Structure:** Strong demand for rationalizing the fee structure, especially in cases with low liquidation value.
+  *   **Security:** IPs have reported safety concerns when taking over management of hostile corporate debtors.
+  *   **Regulatory Compliance:** The compliance burden is described as "excessive" and "distracting" from the core resolution process.`,
+
+  "Operational Creditor": `### **Operational Creditors (OC)**
+  OCs continue to feel marginalized in the waterfall mechanism.
+
+  *   **Payment Priority:** Persistent demands for higher priority in the distribution of proceeds.
+  *   **Discrimination:** OCs argue they are unfairly treated compared to Financial Creditors.`,
+  
+  "User": `### **General User Feedback**
+  Comments from the general public and miscellaneous users.
+
+  *   **UI/UX:** The portal interface is described as "clunky" and "non-intuitive" by first-time users.
+  *   **Accessibility:** Requests for vernacular language support in the documentation.`
+};
+
+// --- SERVICE LOGIC ---
+
+// Fetch summary from Mock Data
+export const fetchSummary = async (category: string, signal?: AbortSignal): Promise<SummaryData> => {
+  try {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    // Retrieve data from mock object
+    // Normalize key lookup if needed (though exact match is preferred here)
+    const summaryText = MOCK_DATA[category] || MOCK_DATA["Overall Summary"] || "No summary available for this category.";
+
+    return {
+      id: `sum_${category.replace(/\s+/g, '_').toLowerCase()}`,
+      category: category,
+      summaryText: summaryText,
+      lastUpdated: new Date().toLocaleString(),
+      updateType: 'Manual'
+    };
+  } catch (error) {
+    console.error("Error fetching summary:", error);
+    return {
+        id: 'error',
+        category,
+        summaryText: `Error fetching summary. \n\nTechnical Error: ${error}`,
+        lastUpdated: new Date().toLocaleString(),
+        updateType: 'Manual'
+    };
+  }
+};
+
 // --- Main Optimized Component ---
 const SummariesByCategory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('');
@@ -197,7 +320,22 @@ const SummariesByCategory: React.FC = () => {
     setIsLoading(true);
     // We keep the activeTab as is so the accordion stays open
     try {
-      const historySummary = await fetchHistorySummary(history);
+      let historySummary: SummaryData;
+
+      if (history.category === 'Overall Summary') {
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 600));
+        historySummary = {
+          id: history.id,
+          category: history.category,
+          summaryText: MOCK_DATA["Overall Summary"],
+          lastUpdated: `${history.date} ${history.time}`,
+          updateType: 'Manual'
+        };
+      } else {
+        historySummary = await fetchHistorySummary(history);
+      }
+
       setSummaries(prev => {
         const updated = new Map(prev);
         updated.set(history.category, historySummary);
