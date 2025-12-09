@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import nest_asyncio
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
@@ -65,9 +65,7 @@ embed_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
 cluster_prompt = PromptTemplate(
     input_variables=["cluster_id", "text"],
     template="""You are a legal analyst. Summarize the following public comments for cluster {cluster_id}.
-
 {text}
-
 Provide:
 - Dominant themes (bulleted)
 - Common concerns (bulleted)
@@ -80,14 +78,11 @@ Policy_analysis_prompt = PromptTemplate(
     input_variables=["document_text", "comments_data", "sentiment_data"],
     template="""
 You are a Legal & Policy Analyst.
-
 Your goal is to generate a complete structured review of the document using the format below.
 If comments_data or sentiment_data are not provided, infer insights only from the draft.
-
 ===========================================
  POLICY REVIEW OUTPUT FORMAT
 ===========================================
-
 1. TITLE & IDENTIFICATION
 - Name of Draft/Document:
 - Issued By:
@@ -105,7 +100,6 @@ If comments_data or sentiment_data are not provided, infer insights only from th
 ===========================================
 2. KEY ISSUES / ANOMALIES IDENTIFIED
 For each anomaly, cover:
-
 Issue Title:
 - Nature of Issue:
     (Ambiguity / Over-regulation / Missing safeguards / Legal conflict / Feasibility issues)
@@ -113,7 +107,6 @@ Issue Title:
 - Evidence from Draft (quote/paraphrase):
 - Stakeholders Raising It (if comments available):
 - Severity Rating (1–5)
-
 Common anomalies to check for:
 ✔ Lack of clarity or vague definitions
 ✔ Over-regulation or rigid compliance
@@ -123,11 +116,9 @@ Common anomalies to check for:
 ✔ Security/privacy risks
 ✔ Missing accountability mechanisms
 ✔ Divergence from global standards
-
 ===========================================
 3. RECOMMENDATIONS (STRONG + ACTIONABLE)
 For each issue above provide:
-
 - Why It Is a Problem:
 - Recommendation (exact fix or redrafted clause):
 - Expected Benefit:
@@ -135,24 +126,18 @@ For each issue above provide:
     (How EU/US/UK/Singapore handle the same matter)
 - Alignment Check for India:
     (Aligned / Partially aligned / Needs reform)
-
 ===========================================
 4. CONCLUSION
 - Overall assessment of the draft (good / moderate revision needed / major overhaul required)
 - Must-fix gaps to reduce risk
 - Importance of implementing changes
 - Expected positive outcomes post-revision
-
 ===========================================
-
 Generate the report now based on:
-
 DRAFT TEXT:
 {document_text}
-
 STAKEHOLDER COMMENTS (if any):
 {comments_data}
-
 SENTIMENT / CLUSTER STATS (if available):
 {sentiment_data}
 """
@@ -161,15 +146,11 @@ SENTIMENT / CLUSTER STATS (if available):
 final_synthesis_prompt = PromptTemplate(
     input_variables=["cluster_summaries", "sentiment_stats", "total_comments"],
     template="""You are a legal analyst. Create a comprehensive policy analysis report.
-
 CLUSTER SUMMARIES:
 {cluster_summaries}
-
 SENTIMENT DISTRIBUTION:
 {sentiment_stats}
-
 TOTAL COMMENTS ANALYZED: {total_comments}
-
 Produce:
 1. EXECUTIVE SUMMARY
 2. METHODOLOGY
@@ -182,219 +163,362 @@ Produce:
 )
 
 # ============================================================
-# ASYNC HELPERS (UNCHANGED)
+# OPTIMIZED ASYNC HELPERS
 # ============================================================
-async def get_embeddings_async(texts, batch_size=1000, concurrency=10):
+async def get_embeddings_async(texts, batch_size=250, concurrency=15):
+    """Optimized embedding generation with smaller batches and higher concurrency"""
     sem = asyncio.Semaphore(concurrency)
     embeddings = []
-
+    
     async def embed_batch(batch):
         async with sem:
-            resp = embed_model.get_embeddings(batch)
-            return [r.values for r in resp]
-
+            try:
+                await asyncio.sleep(0.1)  
+                resp = embed_model.get_embeddings(batch)
+                return [r.values for r in resp]
+            except Exception as e:
+                print(f"⚠️ Embedding batch failed: {e}")
+                
+                return [[0.0] * 768 for _ in batch]
+    
     def batched(iterable, batch_size=batch_size):
         for i in range(0, len(iterable), batch_size):
             yield iterable[i:i+batch_size]
-
+    
     batches = list(batched(texts, batch_size))
-    results = await asyncio.gather(*[embed_batch(b) for b in batches])
+    print(f"   Processing {len(batches)} embedding batches...")
+    
+    results = await asyncio.gather(*[embed_batch(b) for b in batches], return_exceptions=True)
+    
     for r in results:
+        if isinstance(r, Exception):
+            print(f"⚠️ Batch error: {r}")
+            continue
         embeddings.extend(r)
+    
     return embeddings
 
-async def ainvoke_text(prompt_text, retries=2, backoff=0.5):
+async def ainvoke_text(prompt_text, retries=3, backoff=1.0, timeout=120):
+    """Enhanced LLM invocation using sync invoke in thread pool to avoid asyncio issues"""
+    loop = asyncio.get_event_loop()
+    
     for attempt in range(retries):
         try:
-            return await pipeline.ainvoke(prompt_text)
-        except Exception as e:
+            # Use sync invoke in thread pool executor to avoid nested asyncio task issues
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: pipeline.invoke(prompt_text)),
+                timeout=timeout
+            )
+            return result
+        except asyncio.TimeoutError:
             if attempt == retries - 1:
-                return f"[ERROR] {e}"
+                return "[ERROR] LLM timeout - cluster too large"
+            print(f"⏱️ Timeout on attempt {attempt+1}, retrying...")
+            await asyncio.sleep(backoff * (attempt + 1))
+        except asyncio.CancelledError:
+            print(f"⚠️ Task cancelled on attempt {attempt+1}")
+            if attempt == retries - 1:
+                return "[ERROR] Task cancelled - operation interrupted"
+            await asyncio.sleep(backoff * (attempt + 1))
+        except Exception as e:
+            error_msg = str(e)
+            print(f"⚠️ Error on attempt {attempt+1}: {error_msg[:200]}")
+            
+            if attempt == retries - 1:
+                return f"[ERROR] LLM invocation failed: {error_msg[:100]}"
             await asyncio.sleep(backoff * (attempt + 1))
 
 async def summarize_cluster(cid, text, sem):
+    """Optimized cluster summarization with size limits"""
     async with sem:
+        # Strict text size limit for LLM
+        MAX_CLUSTER_SIZE = 50000  
+        if len(text) > MAX_CLUSTER_SIZE:
+            
+            half = MAX_CLUSTER_SIZE // 2
+            text = text[:half] + f"\n\n...[{len(text) - MAX_CLUSTER_SIZE} chars omitted]...\n\n" + text[-half:]
+        
         prompt = cluster_prompt.format(cluster_id=cid, text=text)
-        return cid, await ainvoke_text(prompt)
+        return cid, await ainvoke_text(prompt, timeout=90)
 
 # ============================================================
-# CLUSTERING FUNCTIONS (UNCHANGED)
+# OPTIMIZED CLUSTERING FUNCTIONS
 # ============================================================
-def propose_candidate_k(n, min_per_cluster=100, max_per_cluster=300, max_candidates=8):
-    max_k = max(2, min(n // min_per_cluster, 2000))
-    min_k = 2
+def propose_candidate_k(n, min_per_cluster=80, max_per_cluster=250, max_candidates=6):
+    """Optimized K selection for large datasets"""
+    max_k = max(3, min(n // min_per_cluster, 50))  # Cap at 50 clusters
+    min_k = 3
+    
     if n < min_per_cluster:
-        max_k = 2
+        return [3]
+    
     if max_k <= min_k:
-        return [2]
-    step = max(1, (max_k - min_k) // max_candidates)
-    candidates = list(range(min_k, max_k+1, step))
-    if candidates[-1] != max_k:
-        candidates.append(max_k)
+        return [3]
+    
+    # Logarithmic spacing for better coverage
+    candidates = []
+    if max_k - min_k <= max_candidates:
+        candidates = list(range(min_k, max_k + 1))
+    else:
+        step = max(1, (max_k - min_k) // max_candidates)
+        candidates = list(range(min_k, max_k + 1, step))
+        if candidates[-1] != max_k:
+            candidates.append(max_k)
+    
     return sorted(set([k for k in candidates if k <= n]))
 
-def semantic_dedupe(indices, embeddings_array, threshold=0.90):
+def semantic_dedupe_fast(indices, embeddings_array, threshold=0.92):
+    """Faster deduplication using approximate nearest neighbors"""
     if len(indices) <= 1:
         return indices
-
+    
     vecs = embeddings_array[indices]
     m = vecs.shape[0]
-
-    sim = cosine_similarity(vecs)
-    parent = list(range(m))
-
-    def find(x):
-        if parent[x] != x:
-            parent[x] = find(parent[x])
-        return parent[x]
-
-    def union(x, y):
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    for i in range(m):
-        for j in range(i+1, m):
-            if sim[i, j] >= threshold:
-                union(i, j)
-
-    groups = {}
-    for i in range(m):
-        root = find(i)
-        if root not in groups:
-            groups[root] = i
-
-    return [indices[i] for i in sorted(groups.values())]
+    
+    # For small clusters, use exact method
+    if m <= 50:
+        sim = cosine_similarity(vecs)
+        parent = list(range(m))
+        
+        def find(x):
+            if parent[x] != x:
+                parent[x] = find(parent[x])
+            return parent[x]
+        
+        def union(x, y):
+            px, py = find(x), find(y)
+            if px != py:
+                parent[px] = py
+        
+        for i in range(m):
+            for j in range(i+1, m):
+                if sim[i, j] >= threshold:
+                    union(i, j)
+        
+        groups = {}
+        for i in range(m):
+            root = find(i)
+            if root not in groups:
+                groups[root] = i
+        
+        return [indices[i] for i in sorted(groups.values())]
+    
+    # For large clusters, use approximate method
+    kept = [0]  # Always keep first
+    nn = NearestNeighbors(n_neighbors=min(10, m), metric='cosine', algorithm='brute')
+    nn.fit(vecs)
+    
+    for i in range(1, m):
+        distances, _ = nn.kneighbors([vecs[i]], n_neighbors=min(len(kept)+1, 10))
+        min_dist = distances[0][0] if len(distances[0]) > 0 else 1.0
+        similarity = 1 - min_dist
+        
+        if similarity < threshold:
+            kept.append(i)
+    
+    return [indices[i] for i in kept]
 
 # ============================================================
-# MAIN ANALYSIS FUNCTION
+# OPTIMIZED MAIN ANALYSIS FUNCTION
 # ============================================================
 async def analyze_comments_async(comments, sentiments, draft_text):
-    """Main analysis pipeline"""
+    """Optimized main analysis pipeline for 1000+ comments"""
     
     n_samples = len(comments)
-    print(f"\n Comment count: {n_samples}")
+    print(f"\n📊 Comment count: {n_samples}")
     
     # ============================================================
     # ADAPTIVE DRAFT CHUNKING
     # ============================================================
-    if len(draft_text) > 25000:
-        print(f" Draft too large ({len(draft_text)} chars). Chunking...")
+    if len(draft_text) > 30000:
+        print(f"📄 Draft too large ({len(draft_text)} chars). Chunking...")
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=8000,
+            chunk_size=10000,
             chunk_overlap=500,
             separators=["\n\n", "\n", ".", " ", ""]
         )
         draft_chunks = splitter.split_text(draft_text)
-        print(f" Created {len(draft_chunks)} draft chunks")
+        print(f"   Created {len(draft_chunks)} draft chunks")
+        # Limit to first 5 chunks to avoid overwhelming the LLM
+        if len(draft_chunks) > 5:
+            draft_chunks = draft_chunks[:5]
+            print(f"   ⚠️ Limiting to first 5 chunks")
         draft_text = "\n\n".join([f"### DRAFT CHUNK {i+1}\n{ch}" for i, ch in enumerate(draft_chunks)])
-        print(" Draft replaced with chunked version\n")
     else:
-        print(f" Draft length {len(draft_text)} chars → No chunking needed\n")
-
-    if n_samples < 2:
-        raise ValueError("Need at least 2 comments for clustering")
-
+        print(f"📄 Draft length {len(draft_text)} chars → No chunking needed")
+    
+    if n_samples < 3:
+        raise ValueError("Need at least 3 comments for clustering")
+    
     # ============================================================
-    # EMBEDDING
+    # OPTIMIZED EMBEDDING
     # ============================================================
+    print("\n🔢 Generating embeddings...")
     start = time.time()
-    embeddings = await get_embeddings_async(comments, batch_size=1000, concurrency=10)
-    print(f" Embedded {len(comments)} comments in {time.time() - start:.2f}s")
-
+    
+    # Truncate very long comments to avoid API issues
+    MAX_COMMENT_LENGTH = 5000
+    truncated_comments = [c[:MAX_COMMENT_LENGTH] if len(c) > MAX_COMMENT_LENGTH else c for c in comments]
+    
+    embeddings = await get_embeddings_async(truncated_comments, batch_size=250, concurrency=15)
+    print(f"   ✅ Embedded {len(comments)} comments in {time.time() - start:.2f}s")
+    
     E = np.array(embeddings, dtype=np.float32)
-    X = StandardScaler(with_mean=False).fit_transform(E)
-
+    
+    # Memory-efficient scaling
+    scaler = StandardScaler(with_mean=False)
+    X = scaler.fit_transform(E)
+    
     # ============================================================
-    # ADAPTIVE K SELECTION
+    # OPTIMIZED K SELECTION WITH MINI-BATCH KMEANS
     # ============================================================
+    print("\n🎯 Finding optimal clusters...")
     candidate_ks = propose_candidate_k(n_samples)
-    print("🔍 Candidate k:", candidate_ks)
-
+    print(f"   Candidate k: {candidate_ks}")
+    
     best_k, best_score, best_labels = None, -2, None
-    sample_idx = np.random.choice(n_samples, size=min(2000, n_samples), replace=False)
-
+    
+    # Sample size for silhouette scoring (max 1000 for speed)
+    sample_size = min(1000, n_samples)
+    sample_idx = np.random.choice(n_samples, size=sample_size, replace=False)
+    
     for k in candidate_ks:
         try:
-            km = KMeans(n_clusters=k, n_init=5, random_state=42)
+            # Use MiniBatchKMeans for large datasets (much faster)
+            if n_samples > 500:
+                km = MiniBatchKMeans(
+                    n_clusters=k, 
+                    batch_size=256,
+                    n_init=3, 
+                    random_state=42,
+                    max_iter=100
+                )
+            else:
+                from sklearn.cluster import KMeans
+                km = KMeans(n_clusters=k, n_init=5, random_state=42)
+            
             labels = km.fit_predict(X)
+            
             if len(set(labels)) < 2:
                 continue
-            score = silhouette_score(X[sample_idx], labels[sample_idx])
+            
+            # Calculate silhouette score on sample only
+            score = silhouette_score(X[sample_idx], labels[sample_idx], sample_size=min(500, sample_size))
+            
             if score > best_score:
                 best_k, best_score, best_labels = k, score, labels
-        except Exception:
+                
+        except Exception as e:
+            print(f"   ⚠️ K={k} failed: {e}")
             continue
-
+    
     if best_k is None:
-        best_k = min(max(2, n_samples // 200), n_samples)
-        km = KMeans(n_clusters=best_k, n_init=5, random_state=42)
+        print("   ⚠️ Fallback: using heuristic k")
+        best_k = min(max(3, n_samples // 150), 30)
+        km = MiniBatchKMeans(n_clusters=best_k, batch_size=256, n_init=3, random_state=42)
         best_labels = km.fit_predict(X)
         best_score = -1.0
-
-    print(f" Selected k={best_k} (score={best_score:.3f})")
-
+    
+    print(f"   ✅ Selected k={best_k} (score={best_score:.3f})")
+    
     # ============================================================
     # BUILD CLUSTERS
     # ============================================================
+    print("\n🗂️ Building clusters...")
     clusters = {}
     cluster_indices = {}
+    
     for i, lbl in enumerate(best_labels):
         clusters.setdefault(lbl, []).append(comments[i])
         cluster_indices.setdefault(lbl, []).append(i)
-    print(f" Built {len(clusters)} clusters")
-
+    
+    print(f"   Created {len(clusters)} clusters")
+    
     # ============================================================
-    # SEMANTIC DEDUPLICATION
+    # OPTIMIZED SEMANTIC DEDUPLICATION
     # ============================================================
-    print(" Running semantic deduplication within clusters...")
+    print("\n🔍 Running semantic deduplication...")
     new_clusters = {}
     total_before = 0
     total_after = 0
-
-    for cid, idxs in cluster_indices.items():
-        total_before += len(idxs)
+    
+    # Process clusters in parallel
+    async def dedupe_cluster(cid, idxs):
         if len(idxs) <= 1:
-            new_clusters[cid] = [comments[i] for i in idxs]
-            total_after += len(idxs)
-            continue
-
-        keep_indices = semantic_dedupe(idxs, E, threshold=0.90)
-        new_clusters[cid] = [comments[i] for i in keep_indices]
-        total_after += len(keep_indices)
-
+            return cid, [comments[i] for i in idxs], len(idxs), len(idxs)
+        
+        keep_indices = semantic_dedupe_fast(idxs, E, threshold=0.92)
+        return cid, [comments[i] for i in keep_indices], len(idxs), len(keep_indices)
+    
+    dedupe_tasks = [dedupe_cluster(cid, idxs) for cid, idxs in cluster_indices.items()]
+    dedupe_results = await asyncio.gather(*dedupe_tasks)
+    
+    for cid, texts, before, after in dedupe_results:
+        new_clusters[cid] = texts
+        total_before += before
+        total_after += after
+    
     clusters = new_clusters
-
     reduction_pct = ((total_before - total_after) / total_before * 100) if total_before > 0 else 0
-    print(f" Deduplication complete!")
-    print(f"   Before: {total_before} comments")
-    print(f"   After:  {total_after} comments")
-    print(f"   Removed: {total_before - total_after} duplicates ({reduction_pct:.1f}%)")
-
+    
+    print(f"    Deduplication complete!")
+    print(f"      Before: {total_before} comments")
+    print(f"      After:  {total_after} comments")
+    print(f"      Removed: {total_before - total_after} duplicates ({reduction_pct:.1f}%)")
+    
     # ============================================================
-    # PREPARE CLUSTER TEXTS
+    # PREPARE CLUSTER TEXTS (WITH SIZE LIMITS)
     # ============================================================
+    print("\n📝 Preparing cluster texts...")
     cluster_full_text = {}
+    
     for cid, texts in clusters.items():
+        # Limit comments per cluster to avoid huge texts
+        MAX_COMMENTS_PER_CLUSTER = 100
+        if len(texts) > MAX_COMMENTS_PER_CLUSTER:
+            # Sample diverse comments
+            indices = np.linspace(0, len(texts)-1, MAX_COMMENTS_PER_CLUSTER, dtype=int)
+            texts = [texts[i] for i in indices]
+        
         joined = "\n---\n".join(texts)
-        if len(joined) > 200_000:
-            joined = joined[:180_000] + "\n\n...(truncated)...\n\n" + joined[-10_000:]
+        
+        # Hard limit on cluster text size
+        MAX_SIZE = 60000
+        if len(joined) > MAX_SIZE:
+            half = MAX_SIZE // 2
+            joined = joined[:half] + f"\n\n...[{len(joined) - MAX_SIZE} chars omitted]...\n\n" + joined[-half:]
+        
         cluster_full_text[cid] = joined
-
-    print(f" Prepared {len(cluster_full_text)} clusters")
-
+    
+    print(f"   Prepared {len(cluster_full_text)} clusters")
+    
     # ============================================================
-    # CLUSTER SUMMARIZATION
+    # PARALLEL CLUSTER SUMMARIZATION
     # ============================================================
-    concurrency = 6 if n_samples < 1000 else 10
+    print("\n🤖 Summarizing clusters...")
+    concurrency = 8  # Balanced concurrency
     sem = asyncio.Semaphore(concurrency)
-
-    print(" Summarizing clusters...")
+    
     cluster_tasks = [summarize_cluster(cid, text, sem) for cid, text in cluster_full_text.items()]
-    cluster_results = await asyncio.gather(*cluster_tasks)
-    cluster_summaries = {cid: summary for cid, summary in cluster_results}
-    print(" Cluster summaries complete")
-
+    
+    try:
+        cluster_results = await asyncio.gather(*cluster_tasks, return_exceptions=True)
+    except Exception as e:
+        print(f"   ⚠️ Error during cluster summarization: {str(e)}")
+        # Handle partial results
+        cluster_results = [(i, f"[ERROR] {str(e)[:100]}") for i in range(len(cluster_tasks))]
+    
+    # Filter out errors and build summaries
+    cluster_summaries = {}
+    for result in cluster_results:
+        if isinstance(result, tuple) and len(result) == 2:
+            cid, summary = result
+            cluster_summaries[cid] = summary
+        elif isinstance(result, Exception):
+            print(f"   ⚠️ Cluster task exception: {str(result)[:100]}")
+    
+    print(f"   ✅ Cluster summaries complete ({len(cluster_summaries)} successful)")
+    
     # ============================================================
     # SENTIMENT STATS
     # ============================================================
@@ -403,50 +527,79 @@ async def analyze_comments_async(comments, sentiments, draft_text):
     pos = (df['sentiment'] == 'Positive').sum()
     neu = (df['sentiment'] == 'Neutral').sum()
     total = len(df)
-
+    
     sentiment_stats = f"""
 Negative: {neg} ({neg/total*100:.1f}%)
 Positive: {pos} ({pos/total*100:.1f}%)
 Neutral : {neu} ({neu/total*100:.1f}%)
 Total   : {total}
 """
-
+    
     # ============================================================
     # FINAL SYNTHESIS
     # ============================================================
-    print("📝 Final synthesis...")
-
+    print("\n📊 Final synthesis...")
     cluster_summaries_text = "\n\n".join([
         f"=== CLUSTER {cid} ===\n{cluster_summaries[cid]}"
         for cid in sorted(cluster_summaries.keys())
     ])
-
+    
+    # Limit final summary size
+    MAX_FINAL_SIZE = 100000
+    if len(cluster_summaries_text) > MAX_FINAL_SIZE:
+        cluster_summaries_text = cluster_summaries_text[:MAX_FINAL_SIZE] + "\n\n...[truncated]..."
+    
     sentiment_and_cluster_data = f"""{sentiment_stats}
 Total Clusters Identified: {len(cluster_summaries)}
 Comments After Deduplication: {total_after}
 """
-
+    
     final_prompt = final_synthesis_prompt.format(
         cluster_summaries=cluster_summaries_text,
         sentiment_stats=sentiment_and_cluster_data,
         total_comments=total_after
     )
-
-    overall_summary = await ainvoke_text(final_prompt)
     
+    # Try final synthesis with extended timeout and fallback
+    print("   Starting final synthesis (may take 3-5 minutes)...")
+    try:
+        overall_summary = await asyncio.wait_for(
+            ainvoke_text(final_prompt, timeout=240, retries=2),
+            timeout=300  # 5 minute hard limit
+        )
+    except (asyncio.TimeoutError, asyncio.CancelledError) as e:
+        print(f"   ⚠️ Final synthesis timeout/cancelled: {str(e)}")
+        # Fallback: Return cluster summaries directly
+        overall_summary = f"""[ANALYSIS SUMMARY - Generated from {len(cluster_summaries)} clusters]
+
+{sentiment_stats}
+
+CLUSTER INSIGHTS:
+{cluster_summaries_text[:50000]}
+
+[Note: Full AI synthesis timed out - showing cluster summaries directly]"""
+    
+    print("   ✅ Synthesis complete")
     return overall_summary
 
-
-@app.route('/api/analyze', methods=['GET'])
+@app.route('/api/analyze', methods=['POST'])
 def analyze():
     """
     Main endpoint to analyze policy draft
+    Accepts categoryId in request body to filter comments by category
+    If categoryId is 'overall' or not provided, analyzes all comments
     Reads draft.txt from current directory
     Fetches comments from API
     Returns analysis summary
     """
     try:
         start_time = time.time()
+        
+        # Get categoryId from request body
+        request_data = request.get_json() or {}
+        category_id = request_data.get('categoryId', 'overall')
+        
+        print(f"📊 Category ID: {category_id}")
         
         # Read draft from file
         draft_path = os.path.join(os.getcwd(), 'draft.txt')
@@ -459,51 +612,68 @@ def analyze():
         with open(draft_path, 'r', encoding='utf-8') as f:
             draft_text = f.read()
         
-        print(f" Draft loaded: {len(draft_text)} characters")
+        print(f"📄 Draft loaded: {len(draft_text)} characters")
         
-        # Fetch comments from API
-        api_url = API_URL
+        # Build API URL with categoryId parameter
+        api_url = f"{API_URL}?categoryId={category_id}"
+        
+        # Fetch comments from API with reasonable timeout (5 minutes)
         print(f"🌐 Fetching comments from: {api_url}")
-        
-        response = requests.get(api_url, timeout=None)
+        response = requests.get(api_url, timeout=300)  # 5 minute timeout
         response.raise_for_status()
         
         api_data = response.json()
-        
-        if api_data.get('statusCode') != 200:
-            return jsonify({
-                'statusCode': 400,
-                'error': 'API returned non-200 status'
-            }), 400
-        
-        comments_data = api_data.get('data', [])
-        
+
+        # Handle different API response structures
+        if isinstance(api_data, list):
+            # Direct list response
+            comments_data = api_data
+        elif isinstance(api_data, dict):
+            if api_data.get('statusCode') != 200:
+                return jsonify({
+                    'statusCode': 400,
+                    'error': 'API returned non-200 status'
+                }), 400
+            
+            # Check if data is directly a list or nested in comments
+            data_field = api_data.get('data', {})
+            if isinstance(data_field, list):
+                comments_data = data_field
+            elif isinstance(data_field, dict):
+                comments_data = data_field.get('comments', [])
+            else:
+                comments_data = []
+        else:
+            comments_data = []
+
         if not comments_data:
             return jsonify({
                 'statusCode': 400,
                 'error': 'No comments found in API response'
             }), 400
         
-        
-        comments = [item.get('rawComment', '') for item in comments_data]
+        comments = [item.get('standardComment', '') for item in comments_data]
         sentiments = [item.get('sentiment', 'Neutral') for item in comments_data]
         
-        print(f" Fetched {len(comments)} comments")
+        # Filter out empty comments
+        valid_indices = [i for i, c in enumerate(comments) if c and len(c.strip()) > 0]
+        comments = [comments[i] for i in valid_indices]
+        sentiments = [sentiments[i] for i in valid_indices]
         
-       
-        # summary = asyncio.run(analyze_comments_async(comments, sentiments, draft_text))
+        print(f"💬 Fetched {len(comments)} valid comments")
         
-        loop = asyncio.get_event_loop()
-        summary = loop.run_until_complete(analyze_comments_async(comments, sentiments, draft_text))
-
+        # Run analysis
+        summary = asyncio.run(analyze_comments_async(comments, sentiments, draft_text))
+        
         elapsed = time.time() - start_time
-        print(f" Total time: {elapsed:.2f}s ({elapsed/60:.2f} min)")
+        print(f"\n✅ Total time: {elapsed:.2f}s ({elapsed/60:.2f} min)")
         
         return jsonify({
             'statusCode': 200,
             'data': {
                 'summary': summary,
                 'metadata': {
+                    'category_id': category_id,
                     'total_comments': len(comments),
                     'processing_time_seconds': round(elapsed, 2),
                     'draft_length': len(draft_text)
@@ -512,24 +682,32 @@ def analyze():
         })
         
     except requests.RequestException as e:
+        print(f"❌ API Error: {e}")
         return jsonify({
             'statusCode': 500,
             'error': f'Failed to fetch comments from API: {str(e)}'
         }), 500
     except Exception as e:
+        print(f"❌ Analysis Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'statusCode': 500,
             'error': f'Analysis failed: {str(e)}'
         }), 500
 
-@app.route('/active', methods=['GET'])
-def active():
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
     return jsonify({
-        'status': 'active',
+        'statusCode': 200,
+        'status': 'healthy',
+        'service': 'Policy Analysis API',
+        'max_comments': '1000+'
     })
 
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 8000))
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)

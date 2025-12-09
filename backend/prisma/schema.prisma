@@ -136,21 +136,35 @@ model Company {
 }
 
 model PostSummary {
-  id            String   @id @default(uuid())
-  postId        String
-  summaryText   String
-  totalComments Int      @default(0)
-  positiveCount Int      @default(0)
-  negativeCount Int      @default(0)
-  neutralCount  Int      @default(0)
-  weightedScore Float?
-  topKeywords   String[]
-  createdAt     DateTime @default(now())
-  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id                 String                  @id @default(uuid())
+  postId             String
+  generatedAt        DateTime                @default(now())
+  categorySummaries  CategorySummary[]
+  post               Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
-  @@index([createdAt])
+  @@index([generatedAt])
   @@map("post_summaries")
+}
+
+model CategorySummary {
+  id                 String      @id @default(uuid())
+  postSummaryId      String
+  businessCategoryId String
+  categoryName       String
+  summaryText        String
+  totalComments      Int         @default(0)
+  positiveCount      Int         @default(0)
+  negativeCount      Int         @default(0)
+  neutralCount       Int         @default(0)
+  weightedScore      Float?
+  topKeywords        String[]
+  createdAt          DateTime    @default(now())
+  postSummary        PostSummary @relation(fields: [postSummaryId], references: [id], onDelete: Cascade)
+
+  @@index([postSummaryId])
+  @@index([businessCategoryId])
+  @@map("category_summaries")
 }
 
 model ProcessingQueue {
