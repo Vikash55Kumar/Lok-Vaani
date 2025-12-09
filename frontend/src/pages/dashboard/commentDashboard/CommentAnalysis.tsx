@@ -5,17 +5,19 @@ import SentimentAnalysis from './components/SentimentAnalysis';
 import WordCloud from './components/WordCloud';
 import CommentHeading from './components/CommentHeading';
 // import { FeaturedComment } from './components/FeaturedComment';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 // import { useAuth } from '@/context/useAuth';
 import { getCategoryCommentsCountAsync, getCommentsByPostIdAsync, getCommentsCountAsync, getCommentsWeightageAsync } from '@/store/slices/commentSlice';
 // import SummariesByCategory from './components/SummariesByCategory';
 import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
 import { CommentSummary, Sidebar } from './components';
 import SentimentLineChart from './components/SentimentLineChart';
-import AIAgentChatbot from '../AIAgentChatbot';
+// import AIAgentChatbot from '../AIAgentChatbot';
 import { useChatbot } from '../../../context/ChatbotContext';
 import { cn } from '@/lib/utils';
 
+import { usePdfExport } from '../../../hooks/usePdfExport'; // Import the hook
+import ReportTemplate from '../../../components/dashboard/ReportTemplate'; // Import the template
 
 const dashboardData = {
   alerts: [
@@ -57,6 +59,16 @@ const CommentAnalysis = () => {
   
   // Use draftId as postId, with proper validation
   const postId = draftId;
+
+  // PDF Export
+  const { exportToPdf, isExporting } = usePdfExport();
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleExportClick = () => {
+    if (reportRef.current) {
+      exportToPdf(reportRef, { fileName: `CommentAnalysisReport_${postId}.pdf` });
+    }
+  };
 
   // Initialize comprehensive socket connection for real-time updates
   const { connections, errors } = useCommentSocketUpdates({
@@ -144,6 +156,25 @@ const CommentAnalysis = () => {
 
   return (
     <div className={`bg-white font-sans relative min-h-screen transition-all duration-300 ${isOpen ? 'w-1/2' : 'w-full'}`}>    
+      {/* Hidden Report Template for PDF export */}
+      <div style={{ position: 'absolute', top: -9999, left: -9999 }}>
+        <ReportTemplate ref={reportRef} title={`Comment Analysis for Draft ID: ${postId}`} subtitle="Detailed Sentiment and Activity Report">
+          {/* Render the key components you want in the PDF */}
+          <CommentHeading />
+          <div className='w-full bg-white rounded-md shadow-md transition-all duration-300 mt-2'>
+            <SentimentLineChart data={dashboardData.trendData} />
+          </div>
+          <div className='mt-2'>
+            <WordCloud />
+          </div>
+          <SentimentAnalysis />
+          <SentimentBreakdown />
+          <div className='mt-2'>
+            <CommentSummary comments={comments} />
+          </div>
+        </ReportTemplate>
+      </div>
+
       <Sidebar />
       <div className="py-4 ml-14">
         <div className="w-full px-2">
@@ -177,19 +208,25 @@ const CommentAnalysis = () => {
 
            {/* Actionable Insights Section */}
            <div className="mb-4">
-
-             <div className='mt-2'>
-               {/* Comment Summary Section */}
-               <CommentSummary comments={comments} />
-             </div>
-            
+              <div className='mt-2'>
+            <CommentSummary comments={comments} />
+          </div>
              
            </div>
             </div>
           </section>
+          <div className="flex justify-center mb-8">
+            <button 
+              onClick={handleExportClick} 
+              disabled={isExporting}
+              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-lg font-medium"
+            >
+              {isExporting ? 'Exporting...' : 'Export Full Dashboard to PDF'}
+            </button>
+          </div>
         </div>
       </div>
-      <AIAgentChatbot />
+      {/* <AIAgentChatbot /> */}
     </div>
   );
 };

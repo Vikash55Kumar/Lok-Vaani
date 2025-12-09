@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { CommentProps } from '@/types';
 import type { Comment } from '@/services/commentService';
 import Button from '@/components/common/Button';
-import { MoveRight, ThumbsUp, ThumbsDown, Minus, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { MoveRight, ThumbsUp, ThumbsDown, Minus, Star, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // Helper for language colors
@@ -74,7 +74,10 @@ const CommentItem: React.FC<{ comment: CommentProps }> = ({ comment }) => {
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="text-gray-900 text-sm font-semibold truncate">{comment.company}</span>
                         <span className="text-gray-300 text-xs">•</span>
-                        <span className="text-gray-500 text-xs whitespace-nowrap">{datePart}</span>
+                        <span className="text-gray-500 text-xs whitespace-nowrap flex items-center gap-2">
+                            {datePart}
+                            <FileText className="w-5 h-5 cursor-pointer hover:text-gray-900" onClick={() => console.log('File icon clicked')} />
+                        </span>
                     </div>
                     
                     <div className="flex items-center gap-1.5 shrink-0">

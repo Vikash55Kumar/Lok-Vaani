@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+// import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { AuthProvider } from './context/AuthContext.tsx';
 import { ChatbotProvider } from './context/ChatbotContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+  // <StrictMode>
     <Provider store={store}>
       <BrowserRouter>
         <AuthProvider>
@@ -20,5 +20,5 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </BrowserRouter>
     </Provider>
-  </StrictMode>
+  // </StrictMode>
 );

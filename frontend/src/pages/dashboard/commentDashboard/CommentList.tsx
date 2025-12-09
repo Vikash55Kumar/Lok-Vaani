@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../../hooks/redux';
 import { useCommentSocketUpdates } from '../../../hooks/useCommentSocketUpdates';
 import { type Comment } from '../../../services/commentService';
-import AIAgentChatbot from '../AIAgentChatbot';
+// import AIAgentChatbot from '../AIAgentChatbot';
 import { useChatbot } from '../../../context/ChatbotContext';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +57,8 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
     autoConnect: true
   });
 
+
+
   // Map backend Comment to CommentType
   const mapCommentToCommentType = (c: Comment): CommentType => ({
     id: c.id,
@@ -72,6 +74,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
     createdAt: c.createdAt,
     updatedAt: c.createdAt,
   });
+
   
   const allComments: CommentType[] = useMemo(() => {
     const navigationComments = location.state?.comments || [];
@@ -126,6 +129,9 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
     setDateFrom('');
     setDateTo('');
   };
+
+    console.log('Socket connections:', allComments);
+
 
   // Filtering logic
   const filteredComments: CommentType[] = useMemo(() => allComments.filter((comment: CommentType) => {
@@ -354,7 +360,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments: propComments }) => 
     </div>
     </div>
     </div>
-      <AIAgentChatbot />
+      {/* <AIAgentChatbot /> */}
     </div>
   );
 };

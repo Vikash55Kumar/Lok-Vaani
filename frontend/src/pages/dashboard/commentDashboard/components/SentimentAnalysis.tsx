@@ -8,6 +8,7 @@ import { useSocketProgress } from '../../../../hooks/useSocketProgress';
 import { socketUrl } from '@/utils/baseApi';
 
 import { FeaturedComment } from './FeaturedComment';
+import ClauseDonutChart from './ClauseDonutChart';
 
 // Interface for weighted socket data
 interface WeightedSocketData {
@@ -94,13 +95,11 @@ const SentimentAnalysis: React.FC = () => {
             <div className="px-3 py-2 bg-blue-900 flex items-center shrink-0">
               <h3 className="text-sm font-medium text-white flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-white"/>
-                Overall Sentiment Distribution by Weightage
+                Clause By Analysis
               </h3>
             </div>
             <div className="pt-4 flex-1">
-              <SentimentDonutChart 
-                data={weightedSocketData?.weightedPercentages || commentsWeightage?.weightedPercentages || { positive: 0, negative: 0, neutral: 0 }} 
-              />
+              <ClauseDonutChart />
             </div>
           </div>
         </div>

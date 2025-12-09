@@ -14,6 +14,7 @@ import SystemOverview from './components/SystemOverview';
 import UserManagement from './components/UserManagement';
 import NCOCodeManagement from './components/NCOCodeManagement';
 import DatasetManagement from './components/DatasetManagement';
+import Reports from './components/Reports';
 // import SystemConfiguration from './components/SystemConfiguration';
 import AuditLogs from './components/AuditLogs';
 import AIAgentChatbot from '../AIAgentChatbot';
@@ -50,7 +51,7 @@ const AdminDashboard: React.FC = () => {
     // { id: 'searches', name: 'Search Management', icon: FolderIcon, component: SearchManagement },
     { id: 'datasets', name: 'Datasets', icon: ClipboardDocumentListIcon, component: DatasetManagement },
     // { id: 'config', name: 'System Config', icon: Cog6ToothIcon, component: SystemConfiguration },
-    // { id: 'reports', name: 'Reports', icon: BellIcon, component: Reports },
+    { id: 'reports', name: 'Reports', icon: ClipboardDocumentListIcon, component: Reports },
     { id: 'audit', name: 'Audit Logs', icon: ShieldCheckIcon, component: AuditLogs },
   ];
 

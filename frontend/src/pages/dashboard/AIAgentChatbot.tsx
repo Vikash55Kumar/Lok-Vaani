@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot } from 'lucide-react';
+import { Tooltip } from '@mui/material';
+import { X, Send, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useChatbot } from '../../context/ChatbotContext';
+import agentLogo from '../../assets/agentlogo.png';
 
 // Utility for tailwind class merging
 function cn(...inputs: ClassValue[]) {
@@ -175,11 +177,6 @@ const AIAgentChatbot: React.FC = () => {
                   <Send size={18} />
                 </button>
               </div>
-              {/* <div className="text-center mt-2">
-                <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                  <Sparkles size={10} /> AI can make mistakes. Please verify important information.
-                </p>
-              </div> */}
             </div>
           </motion.div>
         )}
@@ -187,14 +184,21 @@ const AIAgentChatbot: React.FC = () => {
 
       {/* Toggle Button - Only visible when closed */}
       {!isOpen && (
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={toggleChatbot}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/30"
-        >
-          <MessageCircle size={28} />
-        </motion.button>
+        <>
+          <div className="fixed bottom-0 left-0 w-full h-8 bg-gray-500/60 border-t border-gray-500/60 z-20" />
+          <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50">
+            <Tooltip title="Chat with AI Agent" arrow placement="top">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleChatbot}
+                className="h-14 w-14 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] flex items-center justify-center transition-shadow duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 text-white overflow-hidden"
+              >
+                <img src={agentLogo} alt="AI Agent" className="w-full h-full object-cover" />
+              </motion.button>
+            </Tooltip>
+          </div>
+        </>
       )}
     </>
   );
