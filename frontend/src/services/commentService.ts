@@ -71,6 +71,48 @@ interface CommentWeightage {
   };
 }
 
+interface ClauseData {
+  clause: string;
+  positive: number;
+  negative: number;
+  neutral: number;
+  total: number;
+  positivePercentage: number;
+  negativePercentage: number;
+  neutralPercentage: number;
+}
+
+interface ClauseWiseSentimentResponse {
+  clauses: ClauseData[];
+}
+
+interface TopNegativeComment {
+  id: string;
+  rawComment: string;
+  summary: string | null;
+  sentiment: string;
+  sentimentScore: number | null;
+  standardComment: string | null;
+  keywords: string[];
+  commentType: string | null;
+  createdAt: string;
+  company: {
+    name: string;
+    state: string | null;
+    businessCategory: {
+      name: string;
+      categoryType: string;
+      weightageScore: number;
+    };
+  };
+}
+
+interface TopNegativeCommentsResponse {
+  count: number;
+  totalNegative: number;
+  comments: TopNegativeComment[];
+}
+
 const DEFAULT_POST_ID = '2c10f48b-4ccc-4b9f-a91e-5cb2a97e9965';
 
 export const commentService = {
@@ -93,6 +135,16 @@ export const commentService = {
     const response = await api.get(`/comments/comment-weightage/${postId}`);
     return response.data.data;
   },
+
+  async getClauseWiseSentiment(): Promise<ClauseWiseSentimentResponse> {
+    const response = await api.get('/comments/clause-wise-sentiment');
+    return response.data.data;
+  },
+
+  async getTopNegativeComments(): Promise<TopNegativeCommentsResponse> {
+    const response = await api.get('/comments/top-negative-comments');
+    return response.data.data;
+  },
 };
 
 // Export types for use in other files
@@ -103,5 +155,9 @@ export type {
   CategoryCounts,
   Company,
   BusinessCategory,
-  CommentWeightage
+  CommentWeightage,
+  ClauseData,
+  ClauseWiseSentimentResponse,
+  TopNegativeComment,
+  TopNegativeCommentsResponse
 };

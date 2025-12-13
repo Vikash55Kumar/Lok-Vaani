@@ -38,7 +38,7 @@ export const commentFetchScheduler = inngest.createFunction(
               const response = await axios.post(
                 `${process.env.MODEL1_API_URL}/generate`,
                 {}, 
-                { timeout: 15000 }
+                { timeout: 30000 }
               );
               
               // ONLY return the serializable data payload

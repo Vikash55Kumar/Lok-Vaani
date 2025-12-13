@@ -7,7 +7,8 @@ import {
   type HistoryItem,
   refreshSummary,
   getHistoryByCategory,
-  fetchHistorySummary
+  fetchHistorySummary,
+  generateAllCategoriesSummaries
 } from '../../../../services/summaryService';
 
 interface TabButtonProps {
@@ -46,13 +47,33 @@ interface HistoryListProps {
 
 const HistoryList: React.FC<HistoryListProps> = ({ category, onSelectHistory }) => {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (category) {
-      const items = getHistoryByCategory(category);
-      setHistoryItems(items);
+      const loadHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+          const items = await getHistoryByCategory(category);
+          setHistoryItems(items);
+        } catch (error) {
+          console.error('Error loading history:', error);
+          setHistoryItems([]);
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      };
+      loadHistory();
     }
   }, [category]);
+
+  if (isLoadingHistory) {
+    return (
+      <div className="py-3 px-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-400 italic text-center">
+        Loading history...
+      </div>
+    );
+  }
 
   if (historyItems.length === 0) {
       return (
@@ -183,6 +204,7 @@ const SummariesByCategory: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('');
   const [summaries, setSummaries] = useState<Map<string, SummaryData>>(new Map());
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isGeneratingAll, setIsGeneratingAll] = useState<boolean>(false);
 
   const handleTabClick = (category: string) => {
     // Toggle active state
@@ -230,6 +252,30 @@ const SummariesByCategory: React.FC = () => {
     }
   };
 
+  const handleGenerateAll = async () => {
+    setIsGeneratingAll(true);
+    try {
+      await generateAllCategoriesSummaries();
+      
+      // Clear current summaries to force refetch
+      setSummaries(new Map());
+      
+      // If a tab is active, reload its summary
+      if (activeTab) {
+        const newSummary = await refreshSummary(activeTab, undefined);
+        setSummaries(prev => {
+          const updated = new Map(prev);
+          updated.set(activeTab, newSummary);
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error("Error generating all summaries:", error);
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
   // Get current active summary data
   const activeSummaryData = useMemo(() => 
     summaries.get(activeTab),
@@ -243,6 +289,14 @@ const SummariesByCategory: React.FC = () => {
           <ClipboardMinus className="w-5 h-5 text-white" />
           AI-Generated Summaries by Category
         </h3>
+        <button
+          onClick={handleGenerateAll}
+          disabled={isGeneratingAll}
+          className="flex items-center space-x-2 px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-200 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white text-sm font-medium"
+        >
+          <Sparkles className={`h-4 w-4 ${isGeneratingAll ? 'animate-spin' : ''}`} />
+          <span>{isGeneratingAll ? 'Generating...' : 'Generate All'}</span>
+        </button>
       </div>
       
       <div className="flex flex-1 overflow-hidden relative">
@@ -286,13 +340,15 @@ const SummariesByCategory: React.FC = () => {
                     <p className="text-lg font-medium">Select a category</p>
                     <p className="text-sm">Choose a category from the left to view history and summaries</p>
                 </div>
-                ) : isLoading ? (
+                ) : (isLoading || isGeneratingAll) ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-10">
                     <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p className="mt-4 text-gray-700">Generating new summary...</p>
+                    <p className="mt-4 text-gray-700">
+                      {isGeneratingAll ? 'Generating summaries for all categories...' : 'Generating new summary...'}
+                    </p>
                 </div>
                 ) : (
                 <div>
@@ -320,7 +376,7 @@ const SummariesByCategory: React.FC = () => {
                 </div>
                 <button
                 onClick={handleRefresh}
-                disabled={isLoading || !activeTab}
+                disabled={isLoading || isGeneratingAll || !activeTab}
                 className="flex items-center space-x-2 px-4 py-2 bg-white hover:bg-blue-50 text-blue-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-200 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                 <svg className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
