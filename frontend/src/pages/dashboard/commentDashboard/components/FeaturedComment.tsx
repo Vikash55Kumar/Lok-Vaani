@@ -1,8 +1,7 @@
 import { ThumbsUp, ThumbsDown, Minus, Star } from 'lucide-react';
 import type { CommentProps } from '@/types';
 import { useEffect, useState } from 'react';
-
-const API_URL = import.meta.env.VITE_FEAUTURED_COMMENTS;
+import { commentService } from '@/services/commentService';
 
 export const FeaturedComment = () => {
   const [comments, setComments] = useState<CommentProps[]>([]);
@@ -14,25 +13,21 @@ export const FeaturedComment = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error('Failed to fetch comments');
-        const data = await res.json();
-        // API returns { statusCode, data: { comments: [...] } }
-        let items: any[] = data?.data?.comments || [];
+        const result = await commentService.getTopNegativeComments();
         // Map API response to CommentProps structure
-        const mapped = items.map((item) => ({
+        const mapped = result.comments.map((item) => ({
           id: item.id,
           raw_comment: item.rawComment,
           updatedAt: item.createdAt,
-          sentiment: item.sentiment,
+          sentiment: item.sentiment as 'Positive' | 'Negative' | 'Neutral',
           company: item.company?.name || '',
-          language: item.language || '',
+          language: '',
           categoryType: item.company?.businessCategory?.categoryType || '',
           bussiness_category: item.company?.businessCategory?.name || '',
         }));
         setComments(mapped.slice(0, 5));
       } catch (err: any) {
-        setError(err.message || 'Error fetching comments');
+        setError(err?.message || 'Error fetching comments');
       } finally {
         setLoading(false);
       }
