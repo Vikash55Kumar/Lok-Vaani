@@ -37,94 +37,174 @@ export const CATEGORIES = [
 
 export type CategoryType = typeof CATEGORIES[number];
 
-// Mock history data for each category
-const generateMockHistory = (category: string): HistoryItem[] => {
-  const baseHistory: HistoryItem[] = [
-    {
-      id: `${category}-1`,
-      name: "Weekly Report",
-      date: "2025-12-04",
-      time: "09:00",
-      category
-    },
-    {
-      id: `${category}-2`,
-      name: "Data Sync",
-      date: "2025-12-03",
-      time: "14:30",
-      category
-    },
-    {
-      id: `${category}-3`,
-      name: "Analysis Update",
-      date: "2025-12-03",
-      time: "10:15",
-      category
-    },
-    {
-      id: `${category}-4`,
-      name: "Monthly Export",
-      date: "2025-12-01",
-      time: "16:45",
-      category
-    },
-    {
-      id: `${category}-5`,
-      name: "System Update",
-      date: "2025-12-01",
-      time: "08:00",
-      category
-    }
-  ];
-  return baseHistory;
+// Backend API Base URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+
+// Backend response types
+interface BackendTimelineItem {
+  summaryId: string;
+  generatedAt: string;
+  summary: {
+    summaryText: string;
+    totalComments: number;
+    positiveCount: number;
+    negativeCount: number;
+    neutralCount: number;
+    weightedScore: number;
+    topKeywords: string[];
+    categoriesCount?: number; // Only for overall
+  };
+}
+
+interface BackendCategory {
+  categoryId: string;
+  categoryName: string;
+  categoryType: 'OVERALL' | 'BUSINESS';
+  timeline: BackendTimelineItem[];
+}
+
+interface BackendHistoryResponse {
+  categories: BackendCategory[];
+}
+
+// Cache for history data
+let historyCache: BackendHistoryResponse | null = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Fetch all history from backend
+const fetchAllHistory = async (): Promise<BackendHistoryResponse> => {
+  const now = Date.now();
+  if (historyCache && (now - lastFetchTime) < CACHE_DURATION) {
+    return historyCache;
+  }
+
+  try {
+    const response = await axios.get(`${API_BASE_URL}/summaries/history-all`);
+    historyCache = response.data.data;
+    lastFetchTime = now;
+    return historyCache!;
+  } catch (error) {
+    console.error('Error fetching history from backend:', error);
+    throw error;
+  }
+};
+
+// Clear cache (useful when generating new summaries)
+export const clearHistoryCache = () => {
+  historyCache = null;
+  lastFetchTime = 0;
+};
+
+// Map category name from frontend to backend format
+const mapCategoryName = (frontendCategory: string): string => {
+  if (frontendCategory === 'Overall Summary') return 'Overall';
+  return frontendCategory;
 };
 
 // Get history for a specific category
-export const getHistoryByCategory = (category: string): HistoryItem[] => {
-  return generateMockHistory(category);
-};
-
-// Fetch summary data from a specific history item (dummy API for now)
-export const fetchHistorySummary = async (historyItem: HistoryItem): Promise<SummaryData> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Dummy response - in production this would fetch actual historical data
-  console.log(`[GET History] Fetching history: ${historyItem.name} from ${historyItem.date}`);
-  
-  return {
-    id: historyItem.id,
-    category: historyItem.category,
-    summaryText: `# Historical Summary: ${historyItem.name}\n\n` +
-      `**Date:** ${historyItem.date} at ${historyItem.time}\n\n` +
-      `**Category:** ${historyItem.category}\n\n` +
-      `## Summary Content\n\n` +
-      `This is a historical summary retrieved from the archive. ` +
-      `In production, this would contain the actual summary data that was generated at ${historyItem.date} ${historyItem.time}.\n\n` +
-      `### Key Points\n\n` +
-      `* Historical data point 1 for ${historyItem.category}\n` +
-      `* Historical data point 2 for ${historyItem.category}\n` +
-      `* Historical data point 3 for ${historyItem.category}\n\n` +
-      `> This summary was archived on ${historyItem.date}.`,
-    lastUpdated: `${historyItem.date} ${historyItem.time}`,
-    updateType: 'Weekly'
-  };
-};
-
-// Fetch summary from API (GET)
-export const fetchSummary = async (category: string, signal?: AbortSignal): Promise<SummaryData> => {
+export const getHistoryByCategory = async (category: string): Promise<HistoryItem[]> => {
   try {
-    const response = await axios.get(import.meta.env.VITE_AI_MODULE3_SUMMARY_API, { signal });
-    let summaryText = response.data.data.summary;
+    const historyData = await fetchAllHistory();
+    const mappedCategory = mapCategoryName(category);
     
-    // Clean up the summary text
-    summaryText = summaryText.replace(/\\n/g, '\n');
+    const categoryData = historyData.categories.find(
+      cat => cat.categoryName === mappedCategory
+    );
+
+    if (!categoryData || categoryData.timeline.length === 0) {
+      return [];
+    }
+
+    return categoryData.timeline.map((item, index) => {
+      const date = new Date(item.generatedAt);
+      return {
+        id: item.summaryId,
+        name: `Summary #${categoryData.timeline.length - index}`,
+        date: date.toISOString().split('T')[0],
+        time: date.toTimeString().split(' ')[0].substring(0, 5),
+        category: category
+      };
+    });
+  } catch (error) {
+    console.error('Error in getHistoryByCategory:', error);
+    return [];
+  }
+};
+
+// Fetch summary data from a specific history item
+export const fetchHistorySummary = async (historyItem: HistoryItem): Promise<SummaryData> => {
+  try {
+    const historyData = await fetchAllHistory();
+    const mappedCategory = mapCategoryName(historyItem.category);
+    
+    const categoryData = historyData.categories.find(
+      cat => cat.categoryName === mappedCategory
+    );
+
+    if (!categoryData) {
+      throw new Error(`Category ${mappedCategory} not found`);
+    }
+
+    const timelineItem = categoryData.timeline.find(
+      item => item.summaryId === historyItem.id
+    );
+
+    if (!timelineItem) {
+      throw new Error(`Summary ${historyItem.id} not found`);
+    }
 
     return {
-      id: `sum_${category.replace(/\s+/g, '_').toLowerCase()}`,
+      id: timelineItem.summaryId,
+      category: historyItem.category,
+      summaryText: timelineItem.summary.summaryText,
+      lastUpdated: new Date(timelineItem.generatedAt).toLocaleString(),
+      updateType: 'Manual'
+    };
+  } catch (error) {
+    console.error('Error in fetchHistorySummary:', error);
+    throw error;
+  }
+};
+
+// Fetch summary from API (GET) - Get latest summary for a category
+export const fetchSummary = async (category: string, signal?: AbortSignal): Promise<SummaryData> => {
+  try {
+    const mappedCategory = mapCategoryName(category);
+    
+    // For overall, use the overall endpoint
+    if (mappedCategory === 'Overall') {
+      const response = await axios.get(
+        `${API_BASE_URL}/summaries/overall`,
+        { signal }
+      );
+      
+      return {
+        id: `overall_${Date.now()}`,
+        category: category,
+        summaryText: response.data.data.summaryText || response.data.data.summary || '',
+        lastUpdated: new Date().toLocaleString(),
+        updateType: 'Manual'
+      };
+    }
+    
+    // For specific categories, get the latest summary
+    const historyData = await fetchAllHistory();
+    const categoryData = historyData.categories.find(
+      cat => cat.categoryName === mappedCategory
+    );
+
+    if (!categoryData || categoryData.timeline.length === 0) {
+      throw new Error(`No summary found for category: ${mappedCategory}`);
+    }
+
+    const latestSummary = categoryData.timeline[0]; // Timeline is already sorted by desc
+    
+    return {
+      id: latestSummary.summaryId,
       category: category,
-      summaryText: summaryText,
-      lastUpdated: new Date().toLocaleString(),
+      summaryText: latestSummary.summary.summaryText,
+      lastUpdated: new Date(latestSummary.generatedAt).toLocaleString(),
       updateType: 'Manual'
     };
   } catch (error) {
@@ -135,42 +215,72 @@ export const fetchSummary = async (category: string, signal?: AbortSignal): Prom
   }
 };
 
-// Post summary to API (POST) - dummy implementation for now
-export const postSummary = async (category: string, summaryText: string): Promise<void> => {
+// Post summary to API (POST) - Generate new summaries for all categories
+export const postSummary = async (category: string, _summaryText: string): Promise<void> => {
   try {
-    // Dummy POST - logs to console for now
-    // In production, this would be an actual API call
-    console.log(`[POST Summary] Category: ${category}`);
-    console.log(`[POST Summary] Summary Text:`, summaryText.substring(0, 100) + '...');
+    console.log(`[POST Summary] Generating new summary for category: ${category}`);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Call the backend to generate a new summary
+    await axios.post(`${API_BASE_URL}/summaries`);
     
-    // Uncomment below when actual API endpoint is ready
-    // await axios.post(import.meta.env.VITE_API_BASE_URL + '/summaries', {
-    //   category,
-    //   summaryText,
-    //   timestamp: new Date().toISOString()
-    // });
+    // Clear cache to force refetch
+    clearHistoryCache();
     
-    console.log(`[POST Summary] Successfully posted summary for ${category}`);
+    console.log(`[POST Summary] Successfully generated new summary`);
   } catch (error) {
     console.error("Error posting summary:", error);
     throw error;
   }
 };
 
-// Refresh summary: POST current summary, then GET new summary
+// Refresh summary: Generate new summary, then fetch latest
 export const refreshSummary = async (
   category: string, 
-  currentSummary: string | undefined,
+  _currentSummary: string | undefined,
   signal?: AbortSignal
 ): Promise<SummaryData> => {
-  // First, POST the current summary (if exists)
-  if (currentSummary) {
-    await postSummary(category, currentSummary);
+  try {
+    const mappedCategory = mapCategoryName(category);
+    console.log(`[Refresh Summary] Starting refresh for category: ${category}`);
+    
+    // For Overall category, call the overall endpoint
+    if (mappedCategory === 'Overall') {
+      await axios.get(`${API_BASE_URL}/summaries/overall`);
+    } else {
+      // For specific categories, generate summaries for all categories
+      await axios.post(`${API_BASE_URL}/summaries`);
+    }
+    
+    // Clear cache to get fresh data
+    clearHistoryCache();
+    
+    // Wait a bit for processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Fetch the latest summary
+    return await fetchSummary(category, signal);
+  } catch (error) {
+    if (!axios.isCancel(error)) {
+      console.error("Error refreshing summary:", error);
+    }
+    throw error;
   }
-  
-  // Then, GET the new summary
-  return fetchSummary(category, signal);
+};
+
+// Generate all categories summaries at once
+export const generateAllCategoriesSummaries = async (): Promise<void> => {
+  try {
+    console.log('[Generate All] Generating summaries for all categories');
+    
+    // Call the backend to generate summaries for all categories
+    await axios.post(`${API_BASE_URL}/summaries`);
+    
+    // Clear cache to force refetch
+    clearHistoryCache();
+    
+    console.log('[Generate All] Successfully generated summaries for all categories');
+  } catch (error) {
+    console.error("Error generating all summaries:", error);
+    throw error;
+  }
 };

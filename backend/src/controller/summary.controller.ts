@@ -317,8 +317,28 @@ export const getAllSummaryHistory = asyncHandler(async (req: Request, res: Respo
     orderBy: { generatedAt: 'desc' }
   });
 
+  // If no summaries exist yet, return empty structure
   if (summaries.length === 0) {
-    throw new ApiError(404, "No summary history found for this post");
+    const allCategories = await prisma.businessCategory.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    const emptyCategories = [
+      {
+        categoryId: 'overall',
+        categoryName: 'Overall',
+        categoryType: 'OVERALL',
+        timeline: []
+      },
+      ...allCategories.map(cat => ({
+        categoryId: cat.id,
+        categoryName: cat.name,
+        categoryType: cat.categoryType,
+        timeline: []
+      }))
+    ];
+
+    return res.status(200).json(new ApiResponse(200, { categories: emptyCategories }, "No summary history found yet. Generate your first summary to see data here."));
   }
 
   // Get all unique business categories
@@ -360,50 +380,32 @@ export const getAllSummaryHistory = asyncHandler(async (req: Request, res: Respo
     };
   });
 
-  // Add "Overall" as first category with aggregated data
-  const overallTimeline = summaries.map(summary => {
-    const overallStats = summary.categorySummaries.reduce(
-      (acc, cat) => ({
-        totalComments: acc.totalComments + cat.totalComments,
-        positiveCount: acc.positiveCount + cat.positiveCount,
-        negativeCount: acc.negativeCount + cat.negativeCount,
-        neutralCount: acc.neutralCount + cat.neutralCount,
-      }),
-      { totalComments: 0, positiveCount: 0, negativeCount: 0, neutralCount: 0 }
-    );
+  // Add "Overall" as first category - only showing actual saved "Overall" summaries (businessCategoryId = "overall")
+  const overallTimeline = summaries
+    .map(summary => {
+      // Find the "Overall" category summary (businessCategoryId = "overall")
+      const overallCategorySummary = summary.categorySummaries.find(
+        cs => cs.businessCategoryId === 'overall'
+      );
 
-    const overallWeightedScore = overallStats.totalComments > 0
-      ? ((overallStats.positiveCount - overallStats.negativeCount) / overallStats.totalComments) * 100
-      : 0;
+      // Only include this summary if it has an "Overall" category entry
+      if (!overallCategorySummary) return null;
 
-    const keywordMap = new Map<string, number>();
-    summary.categorySummaries.forEach(cat => {
-      cat.topKeywords.forEach(keyword => {
-        keywordMap.set(keyword, (keywordMap.get(keyword) || 0) + 1);
-      });
-    });
-    const topKeywords = Array.from(keywordMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([keyword]) => keyword);
-
-    // Combine all category summaries into one text
-    const combinedSummary = summary.categorySummaries
-      .map(cat => `[${cat.categoryName}]\n${cat.summaryText}`)
-      .join('\n\n---\n\n');
-
-    return {
-      summaryId: summary.id,
-      generatedAt: summary.generatedAt,
-      summary: {
-        summaryText: combinedSummary,
-        ...overallStats,
-        weightedScore: parseFloat(overallWeightedScore.toFixed(2)),
-        topKeywords,
-        categoriesCount: summary.categorySummaries.length
-      }
-    };
-  });
+      return {
+        summaryId: summary.id,
+        generatedAt: summary.generatedAt,
+        summary: {
+          summaryText: overallCategorySummary.summaryText,
+          totalComments: overallCategorySummary.totalComments,
+          positiveCount: overallCategorySummary.positiveCount,
+          negativeCount: overallCategorySummary.negativeCount,
+          neutralCount: overallCategorySummary.neutralCount,
+          weightedScore: overallCategorySummary.weightedScore,
+          topKeywords: overallCategorySummary.topKeywords
+        }
+      };
+    })
+    .filter(item => item !== null);
 
   const result = {
     categories: [
@@ -597,7 +599,7 @@ export const getSummaryDetailsById = asyncHandler(async (req: Request, res: Resp
   }
 });
 
-// Generate overall summary by calling Python API with categoryId=overall
+// Generate overall summary by calling Python API with categoryId=overall and save to database
 export const generateOverallSummary = asyncHandler(async (req: Request, res: Response) => {
   const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
 
@@ -676,6 +678,30 @@ export const generateOverallSummary = asyncHandler(async (req: Request, res: Res
       else if (comment.sentiment?.toLowerCase() === 'neutral') stats.neutral++;
     });
 
+    // Create a special "Overall" category summary entry in the database
+    // We'll use a special businessCategoryId = "overall" to mark this as overall summary
+    const postSummary = await prisma.postSummary.create({
+      data: {
+        postId,
+        categorySummaries: {
+          create: {
+            businessCategoryId: "overall", // Special ID for overall summary
+            categoryName: "Overall",
+            summaryText: aiSummary,
+            totalComments,
+            positiveCount,
+            negativeCount,
+            neutralCount,
+            weightedScore: parseFloat(weightedScore.toFixed(2)),
+            topKeywords
+          }
+        }
+      },
+      include: {
+        categorySummaries: true
+      }
+    });
+
     const categoryBreakdown = await Promise.all(
       Array.from(categoryStats.entries()).map(async ([catId, stats]) => {
         const category = await prisma.businessCategory.findUnique({
@@ -695,6 +721,8 @@ export const generateOverallSummary = asyncHandler(async (req: Request, res: Res
     );
 
     const overallSummary = {
+      summaryId: postSummary.id,
+      generatedAt: postSummary.generatedAt,
       summaryText: aiSummary,
       totalComments,
       positiveCount,
@@ -706,9 +734,9 @@ export const generateOverallSummary = asyncHandler(async (req: Request, res: Res
       processingTime: metadata.processing_time_seconds || 0
     };
 
-    console.log(`✅ Overall summary generated: ${totalComments} comments`);
+    console.log(`✅ Overall summary generated and saved to database: ${totalComments} comments`);
 
-    res.status(200).json(new ApiResponse(200, overallSummary, "Overall summary generated successfully"));
+    res.status(201).json(new ApiResponse(201, overallSummary, "Overall summary generated and saved successfully"));
     
   } catch (error: any) {
     console.error(`❌ Failed to generate overall summary:`, error.message);

@@ -19,8 +19,14 @@ COPY requirements.txt .
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt
 
-# 7. Copy application code
+# 6. Copy application code
 COPY . .
+
+RUN chmod +x entrypoint.sh
+
+# 7. Set the Entrypoint
+# This ensures the script runs first to handle the keys
+ENTRYPOINT ["./entrypoint.sh"]
 
 # 8. Run the application
 

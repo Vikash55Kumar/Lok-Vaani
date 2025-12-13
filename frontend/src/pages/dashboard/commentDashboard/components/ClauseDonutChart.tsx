@@ -9,23 +9,10 @@ import {
   Box,
   Typography
 } from '@mui/material';
+import { commentService, type ClauseData } from '../../../../services/commentService';
 
 
-interface SentimentDonutChartProps {
-}
-
-interface ClauseData {
-  clause: string;
-  positive: number;
-  negative: number;
-  neutral: number;
-  total: number;
-  positivePercentage: number;
-  negativePercentage: number;
-  neutralPercentage: number;
-}
-
-const ClauseDonutChart: React.FC<SentimentDonutChartProps> = () => {
+const ClauseDonutChart: React.FC = () => {
   const [clauses, setClauses] = useState<ClauseData[]>([]);
   const [selectedClauseId, setSelectedClauseId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,15 +21,11 @@ const ClauseDonutChart: React.FC<SentimentDonutChartProps> = () => {
   useEffect(() => {
     const fetchClauseData = async () => {
       try {
-        const response = await fetch(import.meta.env.VITE_CLAUSE_ANALYSIS);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
-        if (result.data && Array.isArray(result.data.clauses)) {
-          setClauses(result.data.clauses);
-          if (result.data.clauses.length > 0) {
-            setSelectedClauseId(result.data.clauses[0].clause);
+        const result = await commentService.getClauseWiseSentiment();
+        if (result && Array.isArray(result.clauses)) {
+          setClauses(result.clauses);
+          if (result.clauses.length > 0) {
+            setSelectedClauseId(result.clauses[0].clause);
           }
         } else {
           setClauses([]);
