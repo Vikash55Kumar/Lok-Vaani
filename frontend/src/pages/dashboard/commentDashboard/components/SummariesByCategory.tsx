@@ -257,18 +257,11 @@ const SummariesByCategory: React.FC = () => {
     try {
       await generateAllCategoriesSummaries();
       
-      // Clear current summaries to force refetch
+      // Clear current summaries to force refetch on next user interaction
       setSummaries(new Map());
       
-      // If a tab is active, reload its summary
-      if (activeTab) {
-        const newSummary = await refreshSummary(activeTab, undefined);
-        setSummaries(prev => {
-          const updated = new Map(prev);
-          updated.set(activeTab, newSummary);
-          return updated;
-        });
-      }
+      // Note: We don't automatically reload the active tab to avoid double generation
+      // User can click refresh or select history to see the new summaries
     } catch (error) {
       console.error("Error generating all summaries:", error);
     } finally {
