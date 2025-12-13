@@ -168,27 +168,11 @@ export const fetchHistorySummary = async (historyItem: HistoryItem): Promise<Sum
 };
 
 // Fetch summary from API (GET) - Get latest summary for a category
-export const fetchSummary = async (category: string, signal?: AbortSignal): Promise<SummaryData> => {
+export const fetchSummary = async (category: string): Promise<SummaryData> => {
   try {
     const mappedCategory = mapCategoryName(category);
     
-    // For overall, use the overall endpoint
-    if (mappedCategory === 'Overall') {
-      const response = await axios.get(
-        `${API_BASE_URL}/summaries/overall`,
-        { signal }
-      );
-      
-      return {
-        id: `overall_${Date.now()}`,
-        category: category,
-        summaryText: response.data.data.summaryText || response.data.data.summary || '',
-        lastUpdated: new Date().toLocaleString(),
-        updateType: 'Manual'
-      };
-    }
-    
-    // For specific categories, get the latest summary
+    // Get the latest summary from history for all categories including Overall
     const historyData = await fetchAllHistory();
     const categoryData = historyData.categories.find(
       cat => cat.categoryName === mappedCategory
@@ -236,8 +220,7 @@ export const postSummary = async (category: string, _summaryText: string): Promi
 // Refresh summary: Generate new summary, then fetch latest
 export const refreshSummary = async (
   category: string, 
-  _currentSummary: string | undefined,
-  signal?: AbortSignal
+  _currentSummary: string | undefined
 ): Promise<SummaryData> => {
   try {
     const mappedCategory = mapCategoryName(category);
@@ -258,7 +241,7 @@ export const refreshSummary = async (
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Fetch the latest summary
-    return await fetchSummary(category, signal);
+    return await fetchSummary(category);
   } catch (error) {
     if (!axios.isCancel(error)) {
       console.error("Error refreshing summary:", error);
