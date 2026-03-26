@@ -75,18 +75,23 @@ Lok-Vaani/
 ## ⚙️ Setup Instructions
 
 # Clone the Repository
-git clone https://github.com/EKTA-056/Lok-Vaani.git
+git clone [(https://github.com/Vikash55Kumar/Lok-Vaani.git)](https://github.com/Vikash55Kumar/Lok-Vaani.git)
+
 cd Lok-Vaani
 
 # Setup Frontend
 cd frontend
+
 npm install
-npm run dev &
+
+npm run dev 
 
 # Setup Backend
 cd ../backend
+
 npm install
-npm run dev &
+
+npm run dev 
 
 # (Optional) Setup AI Service - only if you are using model
 cd ../ai_models/model2
