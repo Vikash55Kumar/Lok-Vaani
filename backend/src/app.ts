@@ -6,6 +6,8 @@ import postRouter from "./router/post.router";
 import commentRouter from "./router/comment.router";
 import companyRouter from "./router/company.router";
 import adminRouter from "./router/admin.router";
+import aiAgentRouter from "./router/aiAgent.router";
+import summaryRouter from "./router/summary.router";
 import path from "path";
 import { functions } from "./inngest/server";
 import { inngest } from "./inngest/client";
@@ -30,9 +32,11 @@ app.use(express.urlencoded({ extended: true }));
 // API routes - must come before static file serving
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/posts", postRouter);
+app.use("/api/v1/summaries", summaryRouter);
 app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/companies", companyRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/agent", aiAgentRouter);
 
 // Serve static files from React build
 const buildPath = path.join(__dirname, '../../frontend/dist');

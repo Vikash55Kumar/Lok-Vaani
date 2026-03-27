@@ -1,0 +1,74 @@
+[
+  {
+    "id": "094fadba-4eca-4713-bbfb-b59193d58a32",
+    "name": "Corporate Debtor",
+    "weightageScore": 4.5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:41:00.876",
+    "updatedAt": "2025-09-23 05:41:00.876"
+  },
+  {
+    "id": "2ca7f9b5-aad9-4f2f-bfd5-3373f38a799e",
+    "name": "Personal Guarantor to a Corporate Debtor",
+    "weightageScore": 4,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:41:26.951",
+    "updatedAt": "2025-09-23 05:41:26.951"
+  },
+  {
+    "id": "5c2ed40c-af81-4691-a36d-67b2be5a51d1",
+    "name": "Partnership firms",
+    "weightageScore": 2.5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:41:53.728",
+    "updatedAt": "2025-09-23 05:41:53.728"
+  },
+  {
+    "id": "5edee7df-cd92-4be5-a76c-bac94b1b6963",
+    "name": "Others",
+    "weightageScore": 1,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:43:09.276",
+    "updatedAt": "2025-09-23 05:43:09.276"
+  },
+  {
+    "id": "7b3d42bb-3c85-4e8d-a56f-8c871f158bcb",
+    "name": "Academics",
+    "weightageScore": 3.5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:41:40.13",
+    "updatedAt": "2025-09-23 05:41:40.13"
+  },
+  {
+    "id": "801e4fc0-9ea9-4980-811a-bb799c6da05e",
+    "name": "User",
+    "weightageScore": 2,
+    "categoryType": "USER",
+    "createdAt": "2025-09-23 05:42:49.742",
+    "updatedAt": "2025-09-23 05:42:49.742"
+  },
+  {
+    "id": "bf2f6dd3-3149-444e-b53d-9e1b346913b4",
+    "name": "Insolvency Professional",
+    "weightageScore": 5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:39:10.593",
+    "updatedAt": "2025-09-23 05:39:10.593"
+  },
+  {
+    "id": "caa98f79-2109-4556-a58e-7e96926c7991",
+    "name": "Proprietorship firms",
+    "weightageScore": 2.5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:42:23.316",
+    "updatedAt": "2025-09-23 05:42:23.316"
+  },
+  {
+    "id": "ce9b70e4-2e90-4cc5-814c-0a4980517852",
+    "name": "Creditor to a Corporate Debtor",
+    "weightageScore": 4.5,
+    "categoryType": "BUSINESS",
+    "createdAt": "2025-09-23 05:41:12.582",
+    "updatedAt": "2025-09-23 05:41:12.582"
+  }
+]

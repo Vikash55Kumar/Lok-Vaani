@@ -8,6 +8,7 @@ import { useSocketProgress } from './hooks/useSocketProgress';
 
 // Public Pages
 import About from './pages/general/About';
+import Pricing from './pages/general/Pricing';
 // import Help from './pages/general/Help';
 
 // Auth Pages
@@ -17,6 +18,7 @@ import Register from './pages/auth/Register';
 // Private Pages
 // import Dashboard from './pages/dashboard/Dashboard';
 import AdminDashboard from './pages/dashboard/adminDashboard/AdminDashboard';
+// import BureaucratsDashboard from './pages/dashboard/bureaucratsDashboard/BureaucratsDashboard';
 import DraftPage from './pages/general/drafts';
 // import UserReports from './pages/dashboard/userDashboard/UserReports';
 // import SearchHistory from './pages/dashboard/userDashboard/SearchHistory';
@@ -27,6 +29,10 @@ import CommentList from './pages/dashboard/commentDashboard/CommentList';
 import { getPostsAsync } from './store/slices/postSlice';
 import CommentAnalysis from './pages/dashboard/commentDashboard/CommentAnalysis';
 import { socketUrl } from './utils/baseApi';
+
+import OverallSummary from './pages/dashboard/commentDashboard/OverallSummary';
+import Alerts from './pages/dashboard/commentDashboard/Alerts';
+import UserCommentPage from './pages/usercomment/UserCommentPage';
 
 function App() {
   const dispatch = useAppDispatch();
@@ -84,13 +90,18 @@ function App() {
 
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="pt-[88px]">
+        <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/drafts" element={isAuthenticated ? <DraftPage /> : <Login />} />
             <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/drafts/comment-analysis/:draftId" element={isAuthenticated ? <CommentAnalysis /> : <Login />} />
             <Route path="/drafts/comments-list" element={isAuthenticated ? <CommentList /> : <Login />} />
+            <Route path="/drafts/overall-summary" element={isAuthenticated ? <OverallSummary /> : <Login />} />
+            <Route path="/drafts/alerts" element={isAuthenticated ? <Alerts /> : <Login />} />
+            <Route path="/user-comment" element={isAuthenticated ? <UserCommentPage /> : <Login />} />
+            {/* <Route path="/bdashboard" element={isAuthenticated ? <BureaucratsDashboard /> : <Login />} /> */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminDashboard />} />

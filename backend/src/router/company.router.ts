@@ -12,7 +12,7 @@ const router = Router();
 
 router.post('/create-company', authenticate, createCompany);
 
-router.get('/all-companies', authenticate, getAllCompanies);
+router.get('/all-companies', getAllCompanies);
 
 router.get('/get-company-byId/:id', authenticate, getCompanyById);
 

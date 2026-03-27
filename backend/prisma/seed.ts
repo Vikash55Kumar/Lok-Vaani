@@ -7,18 +7,15 @@ async function main() {
 
   // Business categories with their weightage scores
   const businessCategories = [
-    { name: 'Corporate Debtor', weightageScore: 0.8, categoryType: 'BUSINESS' },
-    { name: 'Creditor to a Corporate Debtor', weightageScore: 1.0, categoryType: 'BUSINESS' },
-    { name: 'Insolvency Professional', weightageScore: 1.5, categoryType: 'BUSINESS' },
-    { name: 'Insolvency Professional Agency', weightageScore: 1.2, categoryType: 'BUSINESS' },
-    { name: 'Insolvency Professional Entity', weightageScore: 1.2, categoryType: 'BUSINESS' },
-    { name: 'Personal Guarantor', weightageScore: 0.8, categoryType: 'BUSINESS' },
-    { name: 'Proprietorship firms', weightageScore: 1.0, categoryType: 'BUSINESS' },
-    { name: 'Partnership firms', weightageScore: 1.0, categoryType: 'BUSINESS' },
-    { name: 'Academics', weightageScore: 1.1, categoryType: 'BUSINESS' },
-    { name: 'Investors', weightageScore: 1.3, categoryType: 'BUSINESS' },
-    { name: 'Others', weightageScore: 0.5, categoryType: 'BUSINESS' },
-    { name: 'User', weightageScore: 0.5, categoryType: 'USER' },
+    { name: 'Insolvency Professional', weightageScore: 5, categoryType: 'BUSINESS' },
+    { name: 'Corporate Debtor', weightageScore: 4.5, categoryType: 'BUSINESS' },
+    { name: 'Creditor to a Corporate Debtor', weightageScore: 4.5, categoryType: 'BUSINESS' },
+    { name: 'Personal Guarantor to a Corporate Debtor', weightageScore: 4, categoryType: 'BUSINESS' },
+    { name: 'Academics', weightageScore: 3.5, categoryType: 'BUSINESS' },
+    { name: 'Partnership firms', weightageScore: 2.5, categoryType: 'BUSINESS' },
+    { name: 'Proprietorship firms', weightageScore: 2.5, categoryType: 'BUSINESS' },
+    { name: 'User', weightageScore: 2, categoryType: 'USER' },
+    { name: 'Others', weightageScore: 1, categoryType: 'BUSINESS' },
   ];
 
   for (const category of businessCategories) {

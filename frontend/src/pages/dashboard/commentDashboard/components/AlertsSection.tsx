@@ -15,9 +15,9 @@ const AlertsSection: React.FC<AlertsSectionProps> = ({ alerts }) => {
   const totalAlerts = alerts.reduce((sum, alert) => sum + alert.count, 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-white shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-5">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2 font-sans">
             Alerts

@@ -1,0 +1,15 @@
+Flask
+Flask-Cors
+wordcloud
+Pillow
+fastapi
+uvicorn[standard]
+python-dotenv==1.0.1
+nltk
+spacy
+wordcloud
+pillow
+gunicorn
+pydantic
+python-multipart
+

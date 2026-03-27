@@ -49,7 +49,7 @@ const AlertCard: React.FC<AlertCardProps> = ({ title, description, alertType, co
   const styles = getAlertStyles(alertType);
 
   return (
-    <div className={`flex items-start gap-3 p-4 border rounded-lg transition-colors duration-200 ${styles.containerClass}`}>
+    <div className={`flex items-start gap-3 p-4 border transition-colors duration-200 ${styles.containerClass}`}>
       {/* Alert Icon */}
       <div className={`flex-shrink-0 ${styles.iconClass}`}>
         <ExclamationTriangleIcon className="h-5 w-5" />

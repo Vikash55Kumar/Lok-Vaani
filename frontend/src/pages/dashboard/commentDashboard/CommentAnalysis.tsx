@@ -4,14 +4,21 @@ import SentimentBreakdown from './components/SentimentBreakdown';
 import SentimentAnalysis from './components/SentimentAnalysis';
 import WordCloud from './components/WordCloud';
 import CommentHeading from './components/CommentHeading';
-import { useEffect, useCallback } from 'react';
+// import { FeaturedComment } from './components/FeaturedComment';
+import { useEffect, useCallback, useRef } from 'react';
 // import { useAuth } from '@/context/useAuth';
 import { getCategoryCommentsCountAsync, getCommentsByPostIdAsync, getCommentsCountAsync, getCommentsWeightageAsync } from '@/store/slices/commentSlice';
-import SummariesByCategory from './components/SummariesByCategory';
+// import SummariesByCategory from './components/SummariesByCategory';
 import { useCommentSocketUpdates } from '@/hooks/useCommentSocketUpdates';
-import { AlertsSection, CommentSummary } from './components';
+import { CommentSummary, Sidebar } from './components';
+import SentimentLineChart from './components/SentimentLineChart';
+import AIAgentChatbot from '../AIAgentChatbot';
+import { useChatbot } from '../../../context/ChatbotContext';
+import { cn } from '@/lib/utils';
 
-// Dummy data for alerts
+import { usePdfExport } from '../../../hooks/usePdfExport'; // Import the hook
+import ReportTemplate from '../../../components/dashboard/ReportTemplate'; // Import the template
+
 const dashboardData = {
   alerts: [
     {
@@ -28,10 +35,17 @@ const dashboardData = {
       count: 8,
       alertType: 'info' as const
     }
+  ],
+  trendData: [
+    { week: 'Week 1', positive: 65, negative: 20, neutral: 15 },
+    { week: 'Week 2', positive: 70, negative: 15, neutral: 15 },
+    { week: 'Week 3', positive: 75, negative: 10, neutral: 15 },
+    { week: 'Week 4', positive: 80, negative: 8, neutral: 12 }
   ]
 };
 
 const CommentAnalysis = () => {
+  const { isOpen } = useChatbot();
   const dispatch = useAppDispatch();
   const { draftId } = useParams<{ draftId: string }>();
   
@@ -46,8 +60,18 @@ const CommentAnalysis = () => {
   // Use draftId as postId, with proper validation
   const postId = draftId;
 
+  // PDF Export
+  const { exportToPdf, isExporting } = usePdfExport();
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleExportClick = () => {
+    if (reportRef.current) {
+      exportToPdf(reportRef, { fileName: `CommentAnalysisReport_${postId}.pdf` });
+    }
+  };
+
   // Initialize comprehensive socket connection for real-time updates
-  const { isConnected, connections, errors, refreshAll } = useCommentSocketUpdates({
+  const { connections, errors } = useCommentSocketUpdates({
     initialData: {
       positive: commentCounts?.positive || 0,
       negative: commentCounts?.negative || 0,
@@ -131,52 +155,46 @@ const CommentAnalysis = () => {
   }
 
   return (
-    <div className=" bg-gradient-to-br from-[#f7fafd] to-[#eaf1fb] font-sans">
-      {/* Executive Header */}
-      <div className="bg-white  border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-4 mb-2">
-              <h1 className="text-4xl font-bold text-gray-900">LokVaani Analytics</h1>
-              {/* Socket Status Indicator */}
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-                }`}></div>
-                <span className={`text-sm font-medium ${
-                  isConnected ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {isConnected ? 'Live' : 'Offline'}
-                </span>
-                {isConnected && (
-                  <button
-                    onClick={refreshAll}
-                    className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
-                  >
-                    Refresh
-                  </button>
-                )}
+    <div className={`bg-white font-sans relative min-h-screen transition-all duration-300 ${isOpen ? 'w-1/2' : 'w-full'}`}>    
+      {/* Hidden Report Template for PDF export */}
+      <div style={{ position: 'absolute', top: -9999, left: -9999 }}>
+        <ReportTemplate ref={reportRef} title={`Comment Analysis for Draft ID: ${postId}`} subtitle="Detailed Sentiment and Activity Report">
+          {/* Render the key components you want in the PDF */}
+          <CommentHeading />
+          <div className='w-full bg-white rounded-md shadow-md transition-all duration-300 mt-2'>
+            <SentimentLineChart data={dashboardData.trendData} />
+          </div>
+          <div className='mt-2'>
+            <WordCloud />
+          </div>
+          <SentimentAnalysis />
+          <SentimentBreakdown />
+          <div className='mt-2'>
+            <CommentSummary comments={comments} />
+          </div>
+        </ReportTemplate>
+      </div>
+
+      <Sidebar />
+      <div className="py-4 ml-14">
+        <div className="w-full px-2">
+          {/* Main Heading and Featured Comments */}
+          <div className={cn("flex flex-col gap-4 items-start", !isOpen && "xl:flex-row")}>
+            <div className={cn("w-full", !isOpen && "xl:w-[60%]")}>
+              <CommentHeading />
+  
+              {/* Sentiment Trends Chart */}
+              <div className='w-full bg-white rounded-md shadow-md transition-all duration-300 mt-2'>
+                <SentimentLineChart data={dashboardData.trendData} />
+              </div>
+
+              {/* Word Cloud Section */}
+              <div className='mt-2'>
+                 <WordCloud />
               </div>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Stakeholder Sentiment Intelligence Platform</p>
-            
-          </div>
-        </div>
-      </div>
-      
-      <div className="py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Main Heading */}
-          <CommentHeading />
-
-          {/* Visual Separator */}
-          <div className="my-6">
-            <div className="flex items-center">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
-              <div className="px-4">
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-              </div>
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
+            <div className={cn("w-full", !isOpen && "xl:w-[40%]")}>
+              <SentimentAnalysis />
             </div>
           </div>
 
@@ -187,119 +205,30 @@ const CommentAnalysis = () => {
               {/* Sentiment Breakdown Section */}
               <SentimentBreakdown />
 
-              {/* Sentiment Analysis & Trends Section */}
-              <SentimentAnalysis />
-
-              {/* Word Cloud Section */}
-              <WordCloud />
-
-
-           {/* Visual Separator */}
-           <div className="my-2">
-             <div className="flex items-center">
-               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-               <div className="px-6">
-                 <div className="flex space-x-1">
-                   <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                   <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                   <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                 </div>
-               </div>
-               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-             </div>
-           </div>
 
            {/* Actionable Insights Section */}
-           <div className="mb-8">
-
-             <div className='mt-8'>
-               {/* Comment Summary Section */}
-               <CommentSummary comments={comments} />
-             </div>
-            
-             <div className='mt-8'>
-                 {/* Alerts Section */}
-                 <AlertsSection alerts={dashboardData.alerts} />
-             </div>
-          
-             <div className='mt-8'>
-                 {/* Overall Summary and Insights Section */}
-                 <SummariesByCategory />
-             </div>
+           <div className="mb-4">
+              <div className='mt-2'>
+            <CommentSummary comments={comments} />
+          </div>
+             
            </div>
             </div>
           </section>
+          <div className="flex justify-center mb-8">
+            <button 
+              onClick={handleExportClick} 
+              disabled={isExporting}
+              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-lg font-medium"
+            >
+              {isExporting ? 'Exporting...' : 'Export Full Dashboard to PDF'}
+            </button>
+          </div>
         </div>
       </div>
+      <AIAgentChatbot />
     </div>
   );
 };
 
 export default CommentAnalysis;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          // {/* Visual Separator */}
-          // <div className="my-12">
-          //   <div className="flex items-center">
-          //     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-          //     <div className="px-6">
-          //       <div className="flex space-x-1">
-          //         <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-          //         <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-          //         <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-          //       </div>
-          //     </div>
-          //     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-          //   </div>
-          // </div>
-
-          // {/* Actionable Insights Section */}
-          // <div className="mb-8">
-          //   <div className="text-center mb-8">
-          //     <h2 className="text-3xl font-bold text-gray-900 mb-3 font-sans bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          //       Actionable Insights
-          //     </h2>
-          //     <p className="text-gray-600 font-sans max-w-2xl mx-auto">
-          //       Critical alerts, comprehensive summaries, and strategic recommendations for informed decision-making
-          //     </p>
-          //     <div className="w-24 h-1 bg-gradient-to-r from-purple-600 to-pink-600 mx-auto mt-3 rounded-full"></div>
-          //   </div>
-
-          //   <div className='mt-8'>
-          //     {/* Comment Summary Section */}
-          //     <CommentSummary comments={dashboardData.comments} />
-          //   </div>
-            
-          //   <div className='mt-8'>
-          //       {/* Alerts Section */}
-          //       <AlertsSection alerts={dashboardData.alerts} />
-          //   </div>
-          
-          //   <div className='mt-8'>
-          //       {/* Overall Summary and Insights Section */}
-          //       <OverallSummaryInsights data={dashboardData.insights} />
-          //   </div>
-          // </div>
-
-          // {/* Additional Actions Section */}
-          // <div className="text-center">
-          //   <GradientButton>
-          //     View Detailed Analysis
-          //   </GradientButton>
-          // </div>

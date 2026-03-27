@@ -1,9 +1,0 @@
-__pycache__/
-
-venv/
-
-.dockerignore
-
-service_account.json
-
-app1.py

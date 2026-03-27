@@ -29,21 +29,21 @@ const SentimentWeightageChart: React.FC<SentimentWeightageChartProps> = ({ data 
           { 
             data: positiveData, 
             label: 'Positive',
-            color: '#10b981', // emerald-500
+            color: '#93c5fd', // blue-300
           },
           { 
             data: negativeData, 
             label: 'Negative',
-            color: '#ef4444', // red-500
+            color: '#3b82f6', // blue-500
           },
           { 
             data: neutralData, 
             label: 'Neutral',
-            color: '#f59e0b', // amber-500
+            color: '#1e40af', // blue-800
           }
         ]}
-        height={350}
-        margin={{ left: 60, right: 40, top: 40, bottom: 60 }}
+        height={270}
+        margin={{ left: 20, right: 20, top: 20, bottom: 0 }}
         yAxis={[{
           tickLabelStyle: {
             fontSize: 12,
@@ -62,26 +62,13 @@ const SentimentWeightageChart: React.FC<SentimentWeightageChartProps> = ({ data 
             fontWeight: 500,
           },
           '& .MuiBarElement-root': {
-            rx: 4,
+            rx: 0,
             animation: 'growUp 0.8s ease-out',
             transformOrigin: 'bottom',
             transition: 'all 0.3s ease',
             '&:hover': {
               filter: 'brightness(1.15) drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
               transform: 'scaleY(1.05)',
-            },
-          },
-          '@keyframes growUp': {
-            '0%': {
-              transform: 'scaleY(0)',
-              opacity: 0,
-            },
-            '50%': {
-              opacity: 0.7,
-            },
-            '100%': {
-              transform: 'scaleY(1)',
-              opacity: 1,
             },
           },
         }}

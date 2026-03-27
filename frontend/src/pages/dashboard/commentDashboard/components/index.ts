@@ -11,3 +11,4 @@ export { default as WordCloud } from './WordCloud';
 export { default as CommentSummary } from './CommentSummary';
 export { default as AlertCard } from './AlertCard';
 export { default as AlertsSection } from './AlertsSection';
+export { default as Sidebar } from './Sidebar';
