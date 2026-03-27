@@ -297,7 +297,7 @@ Guidelines:
 
 //  Get AI Agent status for a draft (check if initialized)
 export const getAgentStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");

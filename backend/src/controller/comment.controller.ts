@@ -14,7 +14,7 @@ import axios from 'axios';
 
 // Get comments by post ID
 const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");
@@ -62,7 +62,7 @@ const getCommentsByPostId = asyncHandler(async (req: Request, res: Response) => 
 
 // Get Total no of comments in Total, Positive, Negative, Neutral categories
 const getCommentCounts = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");
@@ -99,7 +99,7 @@ const getCommentCounts = asyncHandler(async (req: Request, res: Response) => {
 
 // Get Total no of comments in Total, Positive, Negative, Neutral categories
 const getCategorizedCommentCounts = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");
@@ -164,7 +164,7 @@ const getCategorizedCommentCounts = asyncHandler(async (req: Request, res: Respo
 
 // Get Positive , Negative, Netural percentage according all waitage of comments 
 const getCommentsWeightage = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");
@@ -315,7 +315,7 @@ const getCommentsWeightage = asyncHandler(async (req: Request, res: Response) =>
 
 // Get comment by ID
 const getCommentById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   if (!id) {
     throw new ApiError(400, "Comment ID is required");
@@ -357,7 +357,7 @@ const getCommentById = asyncHandler(async (req: Request, res: Response) => {
 
 // Get common (repeated) comments by post ID
 const getCommonComments = asyncHandler(async (req: Request, res: Response) => {
-  const { postId } = req.params;
+  const postId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
 
   if (!postId) {
     throw new ApiError(400, "Post ID is required");

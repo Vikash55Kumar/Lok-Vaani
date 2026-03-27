@@ -223,7 +223,7 @@ export const getLatestSummary = asyncHandler(async (req: Request, res: Response)
 
 // Get summary by ID
 export const getSummaryById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   if (!id) {
     throw new ApiError(400, "Summary ID is required");
@@ -247,7 +247,7 @@ export const getSummaryById = asyncHandler(async (req: Request, res: Response) =
 
 // Get category-specific summary from latest post summary
 export const getCategorySummary = asyncHandler(async (req: Request, res: Response) => {
-  const { categoryId } = req.params;
+  const categoryId = Array.isArray(req.params.categoryId) ? req.params.categoryId[0] : req.params.categoryId;
   const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
 
   if (!categoryId) {
@@ -424,7 +424,7 @@ export const getAllSummaryHistory = asyncHandler(async (req: Request, res: Respo
 
 // Get summary history timeline - supports both category-specific and overall view
 export const getCategorySummaryHistory = asyncHandler(async (req: Request, res: Response) => {
-  const { categoryId } = req.params;
+  const categoryId = Array.isArray(req.params.categoryId) ? req.params.categoryId[0] : req.params.categoryId;
   const postId = "a90315d4-b2b1-4836-a848-b47e318a5fa5";
 
   if (!categoryId) {
@@ -504,7 +504,8 @@ export const getCategorySummaryHistory = asyncHandler(async (req: Request, res: 
 
 // Get detailed summary by ID (for when user clicks on a timeline entry)
 export const getSummaryDetailsById = asyncHandler(async (req: Request, res: Response) => {
-  const { summaryId, categoryId } = req.params;
+  const summaryId = Array.isArray(req.params.summaryId) ? req.params.summaryId[0] : req.params.summaryId;
+  const categoryId = Array.isArray(req.params.categoryId) ? req.params.categoryId[0] : req.params.categoryId;
 
   if (!summaryId) {
     throw new ApiError(400, "Summary ID is required");
