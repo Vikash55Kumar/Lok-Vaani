@@ -121,7 +121,7 @@ const getCompanyById = asyncHandler(async (req: AuthRequest, res: Response) => {
         throw new ApiError(403, "Forbidden: Admins only");
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   
     const company = await prisma.company.findUnique({
       where: { id }
@@ -147,7 +147,7 @@ const updateCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
       throw new ApiError(403, "Forbidden: Admins only");
   }
 
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { name, uniNumber, state, businessCategoryId } = req.body;
 
   if (!name || !businessCategoryId || !uniNumber || !state) {
@@ -190,7 +190,7 @@ const deleteCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
         throw new ApiError(403, "Forbidden: Admins only");
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   
     const company = await prisma.company.findUnique({
       where: { id }

@@ -50,7 +50,7 @@ connectDB()
     });
 
     // Error handling for server-level errors
-    app.on("error", (error) => {
+    server.on("error", (error) => {
       console.error('❌ Failed to start server:', error);
       process.exit(1);
     });

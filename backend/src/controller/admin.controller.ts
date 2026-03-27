@@ -248,7 +248,7 @@ const updateBusinessCategory = asyncHandler(async (req: AuthRequest, res: Respon
             throw new ApiError(403, "Forbidden: Admins only");
         }
 
-        const { id } = req.params;
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const { name, weightageScore, categoryType } = req.body;
         const userId = 'admin'; // TODO: Get from authenticated user
 
@@ -292,7 +292,7 @@ const deleteBusinessCategory = asyncHandler(async (req: AuthRequest, res: Respon
             throw new ApiError(403, "Forbidden: Admins only");
         }
 
-        const { id } = req.params;
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
         // Check if category exists
         const existingCategory = await prisma.businessCategory.findUnique({

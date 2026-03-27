@@ -67,7 +67,7 @@ export const getAllPosts = asyncHandler(async (req: Request, res: Response) => {
 
 // Get post by ID
 export const getPostById = asyncHandler(async (req: Request, res: Response) => {
-  const {id} = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const post = await prisma.post.findUnique({
     where: { id },
@@ -83,7 +83,7 @@ export const getPostById = asyncHandler(async (req: Request, res: Response) => {
 // Update post
 export const updatePost = asyncHandler(async (req: Request, res: Response) => {
   // TODO: Implement update post logic
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { title, description, standardTitle, standardDescription, postType, issuedBy, issueDate, deadline, language, pdfBase64 } = req.body;
 
   if (!title || !description || !standardTitle || !standardDescription || !postType || !issuedBy || !issueDate) {
@@ -125,7 +125,7 @@ export const updatePost = asyncHandler(async (req: Request, res: Response) => {
 
 // Delete post
 export const deletePost = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const post = await prisma.post.findUnique({
     where: { id }
@@ -151,7 +151,7 @@ export const deletePost = asyncHandler(async (req: Request, res: Response) => {
 
 // Upload PDF for post
 export const uploadPostPdf = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;  
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   if (!req.file) {
     throw new ApiError(400, "PDF file is required");
