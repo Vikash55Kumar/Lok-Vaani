@@ -2,7 +2,6 @@
   "name": "neon_database",
   "version": "1.0.0",
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "dev": "nodemon",
     "inngest-dev": "npx inngest-cli@latest dev",
