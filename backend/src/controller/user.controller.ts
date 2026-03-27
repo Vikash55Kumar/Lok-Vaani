@@ -169,7 +169,7 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
 // Update User Profile
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const { name, email, role } = req.body;
 
         // Check if user exists
@@ -268,7 +268,7 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
 // Change Password
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const { currentPassword, newPassword } = req.body;
 
         // Find user
