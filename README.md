@@ -267,6 +267,4 @@ Built as a Smart India Hackathon project focused on scalable, explainable, and i
 
 ## 🔭 Projects Link: [LokVaani](https://lokvaani.vikashkr.online/)
 
-## 🔭 Projects Link: [LokVaani](https://lokvaani.vikashkr.online/)
-
 
